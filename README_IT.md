@@ -1,4 +1,4 @@
-<h1 align="center"><img src="assets/logo.svg" alt="Hakscan" width="600"></h1>
+![hakscan](assets/hakscan-cover.png)
 
 <div align="center">
 
