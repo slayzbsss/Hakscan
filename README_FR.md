@@ -1,4 +1,4 @@
-![hakscan](assets/hakscan-cover.png)
+![hakscan](assets/banner.png)
 
 <div align="center">
 
