@@ -1,6 +1,6 @@
 pkgbase = hakscan
 	pkgdesc = Fast, self-contained web & file vulnerability scanner
-	pkgver = 4.2
+	pkgver = 4.3
 	pkgrel = 1
 	url = https://github.com/slayzbsss/Hakscan
 	arch = x86_64
@@ -9,7 +9,7 @@ pkgbase = hakscan
 	makedepends = go
 	provides = hakscan
 	conflicts = hakscan-bin
-	source = hakscan-4.2.tar.gz::https://github.com/slayzbsss/Hakscan/archive/refs/tags/v4.2.tar.gz
-	sha256sums = 4470d1b24166f70752b247a81e73133ec12d479c5b511133c7983ac25dfcfd03
+	source = hakscan-4.3.tar.gz::https://github.com/slayzbsss/Hakscan/archive/refs/tags/v4.3.tar.gz
+	sha256sums = 9d5d30db21c0208ac52ccf9c02e64770b8809d98aee1beffd41c652ddb366d17
 
 pkgname = hakscan

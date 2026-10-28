@@ -72,6 +72,12 @@ account needed):
 cd packaging/aur/hakscan-bin && makepkg -si
 ```
 
+Or install the ready-made Arch package from the release directly:
+
+```console
+sudo pacman -U https://github.com/slayzbsss/Hakscan/releases/latest/download/hakscan_4.3_linux_amd64.pkg.tar.zst
+```
+
 **Debian/Ubuntu (.deb) and Fedora/RHEL (.rpm):** download the package for your
 distro from the [releases](https://github.com/slayzbsss/Hakscan/releases) page:
 
