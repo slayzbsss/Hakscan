@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="520" height="130" viewBox="0 0 520 130" role="img" aria-label="Hakscan">
+  <rect width="520" height="130" rx="14" fill="#0d1117"/>
+  <g fill="none" stroke="#2dd4bf" stroke-width="3">
+    <path d="M36 34 L36 96 M36 65 L66 65 M66 34 L66 96"/>
+    <circle cx="92" cy="65" r="26" stroke-dasharray="4 5" opacity="0.8"/>
+    <path d="M92 50 L92 80 M77 65 L107 65" stroke-width="2.4"/>
+  </g>
+  <text x="140" y="62" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="46" font-weight="700" fill="#e6edf3">Hakscan</text>
+  <text x="141" y="92" font-family="'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" fill="#7d8590">web &amp; file vulnerability scanner</text>
+</svg>

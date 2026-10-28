@@ -1,4 +1,4 @@
-module hakscan
+module github.com/slayzbsss/Hakscan
 
 go 1.27.3
 
