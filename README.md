@@ -38,7 +38,7 @@
 
 - Simple JSON/YAML format for creating and customizing detection templates.
 - Web engine: headers, TLS, CORS, exposures, and active parameter tests (XSS, SQLi, SSTI, LFI, command injection, CRLF, open redirect).
-- File engine: built-in AndroidManifest.xml parser and secret/credential scanner for APK/AAB/JAR/ZIP and source trees.
+- File engine: AndroidManifest parser, DEX bytecode string extraction, ELF native-library analysis, APK `assets/` scanning, and a secret/credential scanner for APK/AAB/JAR/ZIP and source trees.
 - Runs your own JSON templates and the community YAML templates.
 - Ultra-fast, dependency-free, and CI/CD friendly with JSON output.
 - Cross-platform single binary — installable via Go and package managers (AUR, .deb, .rpm, .apk).

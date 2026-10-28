@@ -15,7 +15,9 @@ package main
 
 import (
 	"archive/zip"
+	"bytes"
 	"crypto/tls"
+	"debug/elf"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -1450,6 +1452,128 @@ func analyzeManifest(data []byte, rep *Report) {
 	}
 }
 
+func isDex(data []byte) bool { return bytes.HasPrefix(data, []byte("dex\n")) }
+func isELF(data []byte) bool { return bytes.HasPrefix(data, []byte("\x7fELF")) }
+
+// collectURLsIPs extracts referenced hostnames and hardcoded IPs from a blob,
+// filtering out framework/noise hosts and non-routable IPs.
+func collectURLsIPs(data []byte, urls, ips map[string]bool) {
+	for _, m := range urlPattern.FindAll(data, -1) {
+		if u, e := url.Parse(string(m)); e == nil && u.Hostname() != "" {
+			h := u.Hostname()
+			if !strings.HasSuffix(h, ".google.com") && !strings.HasSuffix(h, ".android.com") &&
+				!strings.HasSuffix(h, ".w3.org") && !strings.Contains(h, "schemas.android.com") {
+				urls[h] = true
+			}
+		}
+	}
+	for _, m := range ipPattern.FindAll(data, -1) {
+		ip := string(m)
+		if !strings.HasPrefix(ip, "127.") && !strings.HasPrefix(ip, "0.") && !strings.HasPrefix(ip, "255.") {
+			ips[ip] = true
+		}
+	}
+}
+
+// uleb128 decodes an unsigned LEB128 value, returning it and the bytes read.
+func uleb128(b []byte) (uint32, int) {
+	var result uint32
+	var shift uint
+	for i := 0; i < len(b) && i < 5; i++ {
+		result |= uint32(b[i]&0x7f) << shift
+		if b[i]&0x80 == 0 {
+			return result, i + 1
+		}
+		shift += 7
+	}
+	return result, 0
+}
+
+// dexStrings parses the Dalvik string_ids table of a .dex blob and returns the
+// decoded strings (MUTF-8 read as raw bytes, which is fine for secret matching).
+func dexStrings(data []byte) []string {
+	if len(data) < 0x70 || !isDex(data) {
+		return nil
+	}
+	le := binary.LittleEndian
+	size := le.Uint32(data[0x38:])
+	off := le.Uint32(data[0x3C:])
+	if size > 3_000_000 { // sanity cap against corrupt/hostile headers
+		size = 3_000_000
+	}
+	out := make([]string, 0, size)
+	for i := uint32(0); i < size; i++ {
+		p := int(off) + int(i)*4
+		if p+4 > len(data) {
+			break
+		}
+		so := int(le.Uint32(data[p:]))
+		if so <= 0 || so >= len(data) {
+			continue
+		}
+		_, n := uleb128(data[so:]) // skip the utf16 length prefix
+		idx := so + n
+		end := idx
+		for end < len(data) && data[end] != 0 {
+			end++
+		}
+		if end > idx {
+			out = append(out, string(data[idx:end]))
+		}
+	}
+	return out
+}
+
+// analyzeDex parses a Dalvik executable and scans its string table for secrets
+// and referenced endpoints.
+func analyzeDex(data []byte, location string, rep *Report, seen map[seenKey]bool, urls, ips map[string]bool) {
+	strs := dexStrings(data)
+	if strs == nil {
+		return
+	}
+	rep.add(fmt.Sprintf("Android DEX analyzed (%d strings)", len(strs)), "info",
+		"Parsed the Dalvik string table.", location)
+	text := strings.Join(strs, "\n")
+	scanSecrets(text, location, rep, seen)
+	collectURLsIPs([]byte(text), urls, ips)
+}
+
+// elfStringSections holds the sections most likely to carry constants/strings.
+var elfStringSections = map[string]bool{
+	".rodata": true, ".data": true, ".data.rel.ro": true,
+	".dynstr": true, ".strtab": true, ".comment": true, ".note": true,
+}
+
+// analyzeELF parses an ELF binary (standalone or lib/*.so inside an APK),
+// reports its metadata, and scans string/data sections for secrets and endpoints.
+func analyzeELF(data []byte, location string, rep *Report, seen map[seenKey]bool, urls, ips map[string]bool) {
+	f, err := elf.NewFile(bytes.NewReader(data))
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	meta := strings.TrimPrefix(f.Machine.String(), "EM_") + " " + strings.TrimPrefix(f.Type.String(), "ET_")
+	if f.Section(".symtab") == nil {
+		meta += ", stripped"
+	}
+	rep.add("ELF binary analyzed ("+meta+")", "info", "Parsed ELF sections.", location)
+	var buf []byte
+	for _, s := range f.Sections {
+		if !elfStringSections[s.Name] || s.Size == 0 || s.Size > maxMember {
+			continue
+		}
+		if b, e := s.Data(); e == nil {
+			buf = append(buf, b...)
+		}
+	}
+	if len(buf) == 0 {
+		return
+	}
+	text := textFromBytes(buf)
+	scanSecrets(text, location, rep, seen)
+	collectURLsIPs(buf, urls, ips)
+}
+
 func analyzeArchive(path string, rep *Report) {
 	zr, err := zip.OpenReader(path)
 	if err != nil {
@@ -1460,13 +1584,10 @@ func analyzeArchive(path string, rep *Report) {
 	seen := map[seenKey]bool{}
 	urls := map[string]bool{}
 	ips := map[string]bool{}
-	hasDex := false
+	dexCount, elfCount, assetCount := 0, 0, 0
 	for _, f := range zr.File {
 		if f.FileInfo().IsDir() || f.UncompressedSize64 > maxMember {
 			continue
-		}
-		if f.Name == "classes.dex" {
-			hasDex = true
 		}
 		rc, e := f.Open()
 		if e != nil {
@@ -1477,25 +1598,28 @@ func analyzeArchive(path string, rep *Report) {
 		if filepath.Base(f.Name) == "AndroidManifest.xml" && !strings.Contains(f.Name, "/") {
 			analyzeManifest(data, rep)
 		}
+		if strings.HasPrefix(f.Name, "assets/") {
+			assetCount++
+		}
+		switch {
+		case isDex(data):
+			dexCount++
+			analyzeDex(data, f.Name, rep, seen, urls, ips)
+		case isELF(data):
+			elfCount++
+			analyzeELF(data, f.Name, rep, seen, urls, ips)
+		}
 		scanSecrets(textFromBytes(data), f.Name, rep, seen)
-		for _, m := range urlPattern.FindAll(data, -1) {
-			if u, e := url.Parse(string(m)); e == nil && u.Hostname() != "" {
-				h := u.Hostname()
-				if !strings.HasSuffix(h, ".google.com") && !strings.HasSuffix(h, ".android.com") &&
-					!strings.HasSuffix(h, ".w3.org") && !strings.Contains(h, "schemas.android.com") {
-					urls[h] = true
-				}
-			}
-		}
-		for _, m := range ipPattern.FindAll(data, -1) {
-			ip := string(m)
-			if !strings.HasPrefix(ip, "127.") && !strings.HasPrefix(ip, "0.") && !strings.HasPrefix(ip, "255.") {
-				ips[ip] = true
-			}
-		}
+		collectURLsIPs(data, urls, ips)
 	}
-	if hasDex {
-		rep.add("Android application (DEX present)", "info", "classes.dex found in the archive.", "classes.dex")
+	if dexCount > 0 {
+		rep.add(fmt.Sprintf("Android application (%d DEX file(s))", dexCount), "info", "Dalvik bytecode found and analyzed.", "classes.dex")
+	}
+	if elfCount > 0 {
+		rep.add(fmt.Sprintf("Native ELF libraries bundled (%d)", elfCount), "info", "lib/*.so native code found and analyzed.", "lib/")
+	}
+	if assetCount > 0 {
+		rep.add(fmt.Sprintf("Bundled assets (%d files)", assetCount), "info", "Files under assets/ were scanned for secrets and endpoints.", "assets/")
 	}
 	if len(urls) > 0 {
 		rep.add(fmt.Sprintf("Referenced network endpoints (%d)", len(urls)), "info", "Domains extracted - recon / attack surface leads.", "", joinSorted(urls, 15))
@@ -1514,7 +1638,24 @@ func analyzeSingleFile(path string, rep *Report) {
 	if len(data) > maxMember {
 		data = data[:maxMember]
 	}
-	scanSecrets(textFromBytes(data), filepath.Base(path), rep, map[seenKey]bool{})
+	name := filepath.Base(path)
+	seen := map[seenKey]bool{}
+	urls := map[string]bool{}
+	ips := map[string]bool{}
+	switch {
+	case isDex(data):
+		analyzeDex(data, name, rep, seen, urls, ips)
+	case isELF(data):
+		analyzeELF(data, name, rep, seen, urls, ips)
+	}
+	scanSecrets(textFromBytes(data), name, rep, seen)
+	collectURLsIPs(data, urls, ips)
+	if len(urls) > 0 {
+		rep.add(fmt.Sprintf("Referenced network endpoints (%d)", len(urls)), "info", "Domains extracted - recon / attack surface leads.", "", joinSorted(urls, 15))
+	}
+	if len(ips) > 0 {
+		rep.add(fmt.Sprintf("Hardcoded IP addresses (%d)", len(ips)), "info", "IPs embedded in the file.", "", joinSorted(ips, 10))
+	}
 }
 
 func analyzeDirectory(root string, rep *Report) {
@@ -1784,7 +1925,8 @@ CONFIGURATIONS:
        --delay int     delay between requests in milliseconds (default 300)
 
 FILE ENGINE:
-   hakscan <file>      analyze an APK/AAB/JAR/ZIP or binary (manifest + secret scan)
+   hakscan <file>      analyze an APK/AAB/JAR/ZIP, DEX or ELF
+                       (manifest, DEX & native-lib strings, assets, secrets)
    hakscan <dir>       recursively analyze a directory
 
 UPDATE:
