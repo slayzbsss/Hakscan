@@ -1762,28 +1762,220 @@ func popFlag(args *[]string, names ...string) bool {
 	return hit
 }
 
-const helpText = `Hakscan ` + version + ` - web vulnerability scanner & file analyzer (native binary)
+const helpText = `Hakscan is a fast, template-based web & file vulnerability scanner
+focused on simplicity and shipping as a single native binary.
 
-USAGE
-  hakscan https://target.com                 web scan
-  hakscan -u "https://t.com/p?id=1" --json r.json
-  hakscan --passive https://target.com       no active injection tests
-  hakscan -t auto https://target.com         run community YAML templates
-  hakscan -t dir/ https://target.com         run custom/YAML templates in a dir
-  hakscan -l targets.txt                     scan many targets from a file
-  hakscan app.apk                            analyze a file (APK/ZIP/JAR/bin)
-  hakscan ./dir/                             analyze a directory
-  hakscan app.apk -t dir/                    + custom secret templates
-  hakscan update-templates                   download community YAML templates
-  hakscan version | -h
+Usage:
+  hakscan [flags] <target>
+
+Flags:
+TARGET:
+   -u, --url string    target URL/host to scan
+   -l, --list string   path to file with a list of targets (one per line)
+
+TEMPLATES:
+   -t, --templates string   run JSON/YAML templates from a directory ("auto" for community templates)
+       --passive            passive mode - no active injection tests (headers/TLS/exposures only)
+
+OUTPUT:
+   -o, --json string   write JSON report to the given file
+
+CONFIGURATIONS:
+       --delay int     delay between requests in milliseconds (default 300)
+
+FILE ENGINE:
+   hakscan <file>      analyze an APK/AAB/JAR/ZIP or binary (manifest + secret scan)
+   hakscan <dir>       recursively analyze a directory
+
+UPDATE:
+   update-templates    download / update community YAML templates
+
+DEBUG:
+   version                     show hakscan version
+       --disable-update-check  (-duc) skip the GitHub version check at startup
+   -h, --help                  show this help message
+
+EXAMPLES:
+Run a web scan on a single host:
+   $ hakscan https://example.com
+
+Run with custom templates:
+   $ hakscan -t ./templates/ https://example.com
+
+Run community YAML templates:
+   $ hakscan -t auto https://example.com
+
+Scan many targets with a JSON report:
+   $ hakscan -l targets.txt -o report.json
+
+Analyze a mobile app:
+   $ hakscan app.apk
 
 Authorized targets only. Scanning without permission is illegal.`
 
+const bannerArt = "\n    __          __                       \n   / /_  ____ _/ /________________ _____ \n  / __ \\/ __ `/ //_/ ___/ ___/ __ `/ __ \\\n / / / / /_/ / ,< (__  ) /__/ /_/ / / / /\n/_/ /_/\\__,_/_/|_/____/\\___/\\__,_/_/ /_/    %s\n\n                 slayzbs\n"
+
+func showBanner() {
+	fmt.Fprintf(os.Stderr, bannerArt, "v"+version)
+}
+
+func countTemplates(dir string) int {
+	n := 0
+	filepath.Walk(dir, func(p string, fi os.FileInfo, err error) error {
+		if err != nil || fi.IsDir() {
+			return nil
+		}
+		switch strings.ToLower(filepath.Ext(p)) {
+		case ".yaml", ".yml":
+			n++
+		}
+		return nil
+	})
+	return n
+}
+
+func templatesVersion(dir string) string {
+	if fi, err := os.Stat(dir); err == nil {
+		return fi.ModTime().Format("2006.01.02")
+	}
+	return "unknown"
+}
+
+func newAdditions(dir string) int {
+	data, err := os.ReadFile(filepath.Join(dir, ".new-additions"))
+	if err != nil {
+		return 0
+	}
+	n := 0
+	for _, line := range strings.Split(string(data), "\n") {
+		if s := strings.TrimSpace(line); s != "" && !strings.HasPrefix(s, "#") {
+			n++
+		}
+	}
+	return n
+}
+
+// --- live update check (queried from GitHub, cached to respect the API rate limit) ---
+
+type updateInfo struct {
+	CheckedAt       time.Time `json:"checked_at"`
+	EngineLatest    string    `json:"engine_latest"`
+	TemplatesLatest string    `json:"templates_latest"`
+}
+
+func updateCachePath() string { return filepath.Join(hakscanHome(), ".update-check.json") }
+
+// githubLatestTag returns the tag_name of the latest release of owner/repo, or "".
+func githubLatestTag(repo string) string {
+	req, err := http.NewRequest("GET", "https://api.github.com/repos/"+repo+"/releases/latest", nil)
+	if err != nil {
+		return ""
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("User-Agent", userAgent)
+	resp, err := (&http.Client{Timeout: 4 * time.Second}).Do(req)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return ""
+	}
+	var r struct {
+		TagName string `json:"tag_name"`
+	}
+	if json.NewDecoder(resp.Body).Decode(&r) != nil {
+		return ""
+	}
+	return r.TagName
+}
+
+// fetchLatest returns the latest engine/templates tags, hitting GitHub at most
+// once every 6h and falling back to the cache when offline or disabled.
+func fetchLatest(disable bool) updateInfo {
+	var ui updateInfo
+	if b, err := os.ReadFile(updateCachePath()); err == nil {
+		_ = json.Unmarshal(b, &ui)
+	}
+	if disable || (ui.EngineLatest != "" && time.Since(ui.CheckedAt) < 6*time.Hour) {
+		return ui
+	}
+	eng := githubLatestTag("slayzbsss/Hakscan")
+	tpl := githubLatestTag("projectdiscovery/nuclei-templates")
+	if eng == "" && tpl == "" {
+		return ui // offline: keep whatever cache we had
+	}
+	if eng == "" {
+		eng = ui.EngineLatest
+	}
+	if tpl == "" {
+		tpl = ui.TemplatesLatest
+	}
+	ui = updateInfo{CheckedAt: time.Now(), EngineLatest: eng, TemplatesLatest: tpl}
+	if b, err := json.Marshal(ui); err == nil {
+		_ = os.MkdirAll(hakscanHome(), 0o755)
+		_ = os.WriteFile(updateCachePath(), b, 0o644)
+	}
+	return ui
+}
+
+// verStatus compares current to the latest tag and returns " (latest)" or
+// " (outdated, latest X)"; empty when the latest is unknown.
+func verStatus(current, latest string) string {
+	if latest == "" {
+		return ""
+	}
+	if strings.TrimPrefix(current, "v") == strings.TrimPrefix(latest, "v") {
+		return " (latest)"
+	}
+	return " (outdated, latest " + latest + ")"
+}
+
+// showStartupInfo prints the nuclei-style [INF] startup block and returns the
+// number of installed templates. It queries GitHub (unless noUpdate) for the
+// latest engine/templates versions.
+func showStartupInfo(noUpdate bool) int {
+	ui := fetchLatest(noUpdate)
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintf(os.Stderr, "[INF] Current hakscan version: v%s%s\n", version, verStatus(version, ui.EngineLatest))
+	dir := nucleiTemplatesDir()
+	n := countTemplates(dir)
+	if n == 0 {
+		fmt.Fprintln(os.Stderr, "[INF] No templates installed yet - run: hakscan update-templates")
+		return 0
+	}
+	tplVer, tplStatus := ui.TemplatesLatest, " (latest)"
+	if tplVer == "" {
+		tplVer, tplStatus = templatesVersion(dir), "" // offline fallback: install date
+	}
+	fmt.Fprintf(os.Stderr, "[INF] Current hakscan-templates version: %s%s\n", tplVer, tplStatus)
+	fmt.Fprintf(os.Stderr, "[INF] New templates added in latest release: %d\n", newAdditions(dir))
+	return n
+}
+
 func main() {
+	start := time.Now()
 	args := os.Args[1:]
-	if len(args) == 0 || args[0] == "-h" || args[0] == "--help" || args[0] == "help" {
+	explicitHelp := len(args) > 0 && (args[0] == "-h" || args[0] == "--help" || args[0] == "help")
+	isVersion := len(args) > 0 && (args[0] == "version" || args[0] == "-version" || args[0] == "--version")
+
+	if explicitHelp {
 		fmt.Println(helpText)
 		return
+	}
+	noUpdate := popFlag(&args, "-duc", "--disable-update-check")
+	if !isVersion {
+		showBanner()
+		n := showStartupInfo(noUpdate)
+		if len(args) == 0 {
+			// no target: mirror nuclei's empty run instead of dumping help
+			if n > 0 {
+				fmt.Fprintf(os.Stderr, "[INF] Templates loaded for current scan: %d\n", n)
+				fmt.Fprintf(os.Stderr, "[INF] Executing %d templates from slayzbsss/hakscan-templates\n", n)
+			}
+			fmt.Fprintf(os.Stderr, "[INF] Scan completed in %s. No results found.\n", time.Since(start).Round(time.Millisecond))
+			return
+		}
 	}
 	switch args[0] {
 	case "version", "-version", "--version":
