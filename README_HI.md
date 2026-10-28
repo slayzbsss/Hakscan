@@ -46,9 +46,6 @@
 
 ```console
 go install -v github.com/slayzbsss/Hakscan/cmd/hakscan@latest
-# Arch Linux
-yay -S hakscan-bin
-sudo pacman -U https://github.com/slayzbsss/Hakscan/releases/latest/download/hakscan_4.3_linux_amd64.pkg.tar.zst
 ```
 
 > [!IMPORTANT]

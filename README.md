@@ -83,23 +83,13 @@ _Install Hakscan on your machine and start scanning in seconds. Hakscan is a sin
 
 ### Installation
 
-`hakscan` requires **go >= 1.24** to install from source. Run the following command to get the latest release:
+`hakscan` requires **go >= 1.24** to install successfully. Run the following command to get the latest release:
 
 ```sh
 go install -v github.com/slayzbsss/Hakscan/cmd/hakscan@latest
 ```
 
-Or install from a package manager / prebuilt binary:
-
-```sh
-# Arch Linux (AUR)
-yay -S hakscan-bin
-
-# Arch Linux (release package)
-sudo pacman -U https://github.com/slayzbsss/Hakscan/releases/latest/download/hakscan_4.4_linux_amd64.pkg.tar.zst
-```
-
-Prebuilt binaries for Linux, macOS and Windows are available on the [**`releases`**](https://github.com/slayzbsss/Hakscan/releases) page. You can also build from source with `make build`.
+Prebuilt binaries for Linux, macOS and Windows are available on the [**`releases`**](https://github.com/slayzbsss/Hakscan/releases) page.
 
 ### Command Line Flags
 
