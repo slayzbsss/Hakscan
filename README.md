@@ -3,7 +3,7 @@
 </h1>
 
 <p align="center">
-<strong>English</strong> • <a href="README_FR.md">Français</a>
+<strong>English</strong> • <a href="README_FR.md">Français</a> • <a href="README_ES.md">Español</a> • <a href="README_PT-BR.md">Português</a>
 </p>
 
 <p align="center">
@@ -55,22 +55,48 @@ zero runtime dependencies.
 
 ## Get Started
 
-Install on your machine with Go:
+### Install with a package manager
+
+**Arch Linux (AUR) — yay:**
+
+```console
+yay -S hakscan-bin      # prebuilt binary
+# or build from source:
+yay -S hakscan
+```
+
+**Debian/Ubuntu (.deb) and Fedora/RHEL (.rpm):** download the package for your
+distro from the [releases](https://github.com/slayzbsss/Hakscan/releases) page:
+
+```console
+sudo dpkg -i hakscan_*_linux_amd64.deb      # Debian/Ubuntu
+sudo rpm -i  hakscan_*_linux_amd64.rpm      # Fedora/RHEL
+```
+
+**Go:**
 
 ```console
 go install -v github.com/slayzbsss/Hakscan/cmd/hakscan@latest
 ```
 
-Or download a prebuilt binary from the
-[releases](https://github.com/slayzbsss/Hakscan/releases) page
-(`linux`, `darwin`, `windows` — `amd64`/`arm64`):
+**Docker:**
 
 ```console
-chmod +x hakscan
+docker build -t hakscan . && docker run --rm hakscan -h
+```
+
+### Install from a binary
+
+Download a prebuilt binary from the
+[releases](https://github.com/slayzbsss/Hakscan/releases) page
+(`linux`, `darwin`, `windows` — `amd64`/`arm64`), extract and run:
+
+```console
+tar xzf hakscan_*_linux_amd64.tar.gz
 ./hakscan -h
 ```
 
-Or build from source:
+### Build from source
 
 ```console
 git clone https://github.com/slayzbsss/Hakscan.git

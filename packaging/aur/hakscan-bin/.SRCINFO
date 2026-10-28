@@ -1,0 +1,16 @@
+pkgbase = hakscan-bin
+	pkgdesc = Fast, self-contained web & file vulnerability scanner (prebuilt binary)
+	pkgver = 4.1
+	pkgrel = 1
+	url = https://github.com/slayzbsss/Hakscan
+	arch = x86_64
+	arch = aarch64
+	license = MIT
+	provides = hakscan
+	conflicts = hakscan
+	source_x86_64 = hakscan-4.1-x86_64.tar.gz::https://github.com/slayzbsss/Hakscan/releases/download/v4.1/hakscan_4.1_linux_amd64.tar.gz
+	sha256sums_x86_64 = 1f06c0901ff934d1b473d2de2e3d2422b5d11e17fadc92b82acc19859919d0c2
+	source_aarch64 = hakscan-4.1-aarch64.tar.gz::https://github.com/slayzbsss/Hakscan/releases/download/v4.1/hakscan_4.1_linux_arm64.tar.gz
+	sha256sums_aarch64 = 48637316455d913fc1e1d6fb513a2219b264a9d518e86017eebc7ccea2cc2ba8
+
+pkgname = hakscan-bin

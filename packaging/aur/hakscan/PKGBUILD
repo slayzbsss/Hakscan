@@ -1,0 +1,26 @@
+# Maintainer: slayzbsss
+pkgname=hakscan
+pkgver=4.1
+pkgrel=1
+pkgdesc="Fast, self-contained web & file vulnerability scanner"
+arch=('x86_64' 'aarch64')
+url="https://github.com/slayzbsss/Hakscan"
+license=('MIT')
+makedepends=('go')
+provides=('hakscan')
+conflicts=('hakscan-bin')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('9e90d98d94c4c52ab407b508b7851633f8eb59ee2050a8eafd480f50555421ff')
+
+build() {
+  cd "Hakscan-$pkgver"
+  export CGO_ENABLED=0 GOFLAGS="-trimpath -mod=readonly -modcacherw"
+  go build -ldflags="-s -w" -o hakscan ./cmd/hakscan
+}
+
+package() {
+  cd "Hakscan-$pkgver"
+  install -Dm755 hakscan "$pkgdir/usr/bin/hakscan"
+  install -Dm644 LICENSE.md "$pkgdir/usr/share/licenses/$pkgname/LICENSE.md"
+  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+}

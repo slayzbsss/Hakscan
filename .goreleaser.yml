@@ -33,3 +33,17 @@ release:
   github:
     owner: slayzbsss
     name: Hakscan
+
+nfpms:
+  - id: packages
+    package_name: hakscan
+    vendor: slayzbsss
+    homepage: https://github.com/slayzbsss/Hakscan
+    maintainer: slayzbsss <slayzbsss@users.noreply.github.com>
+    description: Fast, self-contained web & file vulnerability scanner.
+    license: MIT
+    formats:
+      - deb
+      - rpm
+      - apk
+    bindir: /usr/bin
