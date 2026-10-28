@@ -65,6 +65,13 @@ yay -S hakscan-bin      # prebuilt binary
 yay -S hakscan
 ```
 
+Not on the AUR yet? Build and install the package locally with pacman (no AUR
+account needed):
+
+```console
+cd packaging/aur/hakscan-bin && makepkg -si
+```
+
 **Debian/Ubuntu (.deb) and Fedora/RHEL (.rpm):** download the package for your
 distro from the [releases](https://github.com/slayzbsss/Hakscan/releases) page:
 

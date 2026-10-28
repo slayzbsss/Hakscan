@@ -46,4 +46,5 @@ nfpms:
       - deb
       - rpm
       - apk
+      - archlinux
     bindir: /usr/bin
