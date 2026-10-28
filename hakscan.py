@@ -16,6 +16,8 @@ Two engines under one command:
               parameters: reflected XSS, SQL errors, SSTI, LFI, command
               injection, CRLF, open redirect.
               Custom JSON detection templates:  -t my_templates/
+              Official nuclei templates (YAML):  hakscan update-templates
+                                                 hakscan -t auto https://target.com
 
   * FILES     hakscan app.apk
               hakscan ./my-project/
@@ -35,11 +37,13 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import socket
 import ssl
 import struct
 import subprocess
 import sys
+import tempfile
 import time
 import zipfile
 from dataclasses import dataclass, field, asdict
@@ -52,6 +56,11 @@ VERSION = "3.0"
 USER_AGENT = "Hakscan/3.0 (+authorized-security-testing)"
 HTTP_TIMEOUT = 12
 MAX_BODY = 500_000
+
+HAKSCAN_HOME = os.path.expanduser("~/.hakscan")
+NUCLEI_TEMPLATES_DIR = os.path.join(HAKSCAN_HOME, "nuclei-templates")
+NUCLEI_TEMPLATES_ZIP = ("https://github.com/projectdiscovery/nuclei-templates"
+                        "/archive/refs/heads/main.zip")
 
 SEVERITIES = {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
 COLORS = {"critical": "\033[95m", "high": "\033[91m", "medium": "\033[93m",
@@ -591,22 +600,146 @@ class WebScanner:
                                 f"Parameter '{key}' controls an external redirect.",
                                 location=key, evidence=f"{variant} -> {loc}")
 
-    # --- custom JSON templates ----------------------------------------------
+    # --- templates: custom JSON + official nuclei YAML ----------------------
+    MAX_NUCLEI = 4000
+
     def run_templates(self, base: str):
-        if not os.path.isdir(self.templates):
-            self.report.add("Template directory not found", "info", self.templates)
+        root = self.templates
+        if root in ("auto", "nuclei"):
+            root = NUCLEI_TEMPLATES_DIR
+        if not os.path.isdir(root):
+            self.report.add("Template directory not found", "info", root)
+            if root == NUCLEI_TEMPLATES_DIR:
+                self.report.add("Hint", "info", "Run 'hakscan update-templates' first.")
             return
-        files = [os.path.join(self.templates, f) for f in os.listdir(self.templates)
-                 if f.endswith(".json")]
-        print(f"[*] Running {len(files)} custom template(s)")
-        for fp in files:
+        json_files, yaml_files = [], []
+        for r, _d, fs in os.walk(root):
+            for f in fs:
+                p = os.path.join(r, f)
+                if f.endswith(".json"):
+                    json_files.append(p)
+                elif f.endswith((".yaml", ".yml")):
+                    yaml_files.append(p)
+        pp = urlparse(base)
+        origin = f"{pp.scheme}://{pp.netloc}"
+        print(f"[*] Templates: {len(json_files)} custom (JSON), {len(yaml_files)} nuclei (YAML)")
+        for fp in json_files:
             try:
                 with open(fp, encoding="utf-8") as fh:
                     tpl = json.load(fh)
             except (OSError, json.JSONDecodeError) as e:
                 self.report.add("Unreadable template", "info", f"{fp}: {e}")
                 continue
-            self._run_one_template(base, tpl, os.path.basename(fp))
+            self._run_one_template(origin, tpl, os.path.basename(fp))
+        if yaml_files:
+            self._run_nuclei_templates(origin, yaml_files)
+
+    def _run_nuclei_templates(self, origin: str, files: list):
+        try:
+            import yaml
+        except ImportError:
+            self.report.add("nuclei templates skipped", "info",
+                            "PyYAML not available; install it to run YAML templates.")
+            return
+        if len(files) > self.MAX_NUCLEI:
+            print(f"[!] {len(files)} templates found; limiting to {self.MAX_NUCLEI}. "
+                  "Point -t at a subfolder to narrow the scope.")
+            files = files[:self.MAX_NUCLEI]
+        run = matched = skipped = 0
+        for fp in files:
+            try:
+                with open(fp, encoding="utf-8", errors="replace") as fh:
+                    tpl = yaml.safe_load(fh)
+            except Exception:
+                skipped += 1
+                continue
+            if not isinstance(tpl, dict):
+                skipped += 1
+                continue
+            res = self._run_one_nuclei(origin, tpl)
+            if res is None:
+                skipped += 1
+            else:
+                run += 1
+                matched += 1 if res else 0
+            self._sleep()
+        self.report.add("nuclei templates executed", "info",
+                        f"{run} run, {matched} matched, {skipped} skipped "
+                        "(unsupported construct or parse error).")
+
+    def _run_one_nuclei(self, origin: str, tpl: dict):
+        """Run a single nuclei HTTP template (supported subset).
+        Returns True (match), False (ran, no match) or None (unsupported)."""
+        info = tpl.get("info") or {}
+        reqs = tpl.get("http") or tpl.get("requests")
+        if not isinstance(reqs, list) or not reqs:
+            return None
+        block = reqs[0]
+        if not isinstance(block, dict) or "raw" in block:
+            return None
+        paths = block.get("path")
+        matchers = block.get("matchers")
+        if not isinstance(paths, list) or not paths or not isinstance(matchers, list) or not matchers:
+            return None
+        for m in matchers:
+            if not isinstance(m, dict) or m.get("type") not in ("word", "status", "regex"):
+                return None
+        method = (block.get("method") or "GET").upper()
+        cond = (block.get("matchers-condition") or "or").lower()
+        ran = False
+        for raw_path in paths[:5]:
+            url = str(raw_path).replace("{{BaseURL}}", origin).replace("{{Hostname}}", urlparse(origin).netloc)
+            if "{{" in url:
+                return None
+            r = http(url, method=method)
+            self._sleep()
+            if not r:
+                continue
+            ran = True
+            if self._nuclei_match(r, matchers, cond):
+                self.report.add(info.get("name") or tpl.get("id", "nuclei template"),
+                                info.get("severity", "info"),
+                                (str(info.get("description") or "nuclei template matched.")).strip()[:200],
+                                location=url, evidence=tpl.get("id", ""))
+                return True
+        return False if ran else None
+
+    def _part(self, r: Resp, part: str) -> str:
+        hdr = "\n".join(f"{k}: {v}" for k, v in r.headers.items())
+        if part == "header":
+            return hdr
+        if part in ("all", "raw", "response"):
+            return f"HTTP {r.status}\n{hdr}\n\n{r.body}"
+        return r.body
+
+    def _nuclei_match(self, r: Resp, matchers: list, cond: str) -> bool:
+        results = []
+        for m in matchers:
+            t = m.get("type")
+            neg = bool(m.get("negative"))
+            ci = bool(m.get("case-insensitive"))
+            hay = self._part(r, m.get("part", "body"))
+            if ci:
+                hay = hay.lower()
+            mc = (m.get("condition") or "or").lower()
+            res = False
+            try:
+                if t == "word":
+                    words = [str(w).lower() if ci else str(w) for w in m.get("words", [])]
+                    res = all(w in hay for w in words) if mc == "and" else any(w in hay for w in words)
+                elif t == "status":
+                    res = r.status in (m.get("status") or [])
+                elif t == "regex":
+                    flags = re.I if ci else 0
+                    pats = m.get("regex", [])
+                    res = (all(re.search(p, hay, flags) for p in pats) if mc == "and"
+                           else any(re.search(p, hay, flags) for p in pats))
+            except re.error:
+                res = False
+            results.append((not res) if neg else res)
+        if not results:
+            return False
+        return all(results) if cond == "and" else any(results)
 
     def _run_one_template(self, base: str, tpl: dict, name: str):
         r = http(urljoin(base, tpl.get("path", "/")), method=tpl.get("method", "GET").upper())
@@ -967,6 +1100,62 @@ def analyze_file_target(target: str, json_out: str | None) -> int:
 
 
 # ===========================================================================
+#  Official template management (nuclei-templates, MIT - ProjectDiscovery)
+# ===========================================================================
+
+def _safe_extract(zf: zipfile.ZipFile, dest: str):
+    dest_abs = os.path.abspath(dest)
+    for member in zf.namelist():
+        target = os.path.abspath(os.path.join(dest, member))
+        if not target.startswith(dest_abs + os.sep) and target != dest_abs:
+            raise ValueError(f"unsafe path in archive: {member}")
+    zf.extractall(dest)
+
+
+def update_templates() -> int:
+    """Download the official nuclei-templates into ~/.hakscan/nuclei-templates.
+
+    These templates are the work of ProjectDiscovery, distributed under the
+    MIT license; Hakscan only downloads and runs them locally.
+    """
+    os.makedirs(HAKSCAN_HOME, exist_ok=True)
+    tmpzip = os.path.join(tempfile.gettempdir(), "hakscan_templates.zip")
+    print("[*] Downloading the official nuclei-templates (MIT, (c) ProjectDiscovery)...")
+    try:
+        req = Request(NUCLEI_TEMPLATES_ZIP, headers={"User-Agent": USER_AGENT})
+        with _opener.open(req, timeout=180) as r, open(tmpzip, "wb") as fh:
+            shutil.copyfileobj(r, fh)
+    except (URLError, OSError) as e:
+        sys.stderr.write(f"[!] Download failed: {e}\n")
+        return 1
+    staging = os.path.join(HAKSCAN_HOME, "_staging")
+    shutil.rmtree(staging, ignore_errors=True)
+    try:
+        with zipfile.ZipFile(tmpzip) as z:
+            _safe_extract(z, staging)
+    except (zipfile.BadZipFile, ValueError) as e:
+        sys.stderr.write(f"[!] Extraction failed: {e}\n")
+        return 1
+    finally:
+        os.remove(tmpzip)
+    extracted = os.path.join(staging, "nuclei-templates-main")
+    if not os.path.isdir(extracted):
+        subs = [os.path.join(staging, d) for d in os.listdir(staging)]
+        extracted = next((d for d in subs if os.path.isdir(d)), staging)
+    shutil.rmtree(NUCLEI_TEMPLATES_DIR, ignore_errors=True)
+    shutil.move(extracted, NUCLEI_TEMPLATES_DIR)
+    shutil.rmtree(staging, ignore_errors=True)
+    count = sum(1 for _r, _d, fs in os.walk(NUCLEI_TEMPLATES_DIR)
+                for f in fs if f.endswith((".yaml", ".yml")))
+    print(f"[*] {count} templates installed in {NUCLEI_TEMPLATES_DIR}")
+    print("    Templates (c) ProjectDiscovery, MIT license.")
+    print(f"    Run them with:  hakscan -t auto https://target.com")
+    print("    Tip: point -t at a subfolder to stay fast/quiet, e.g.")
+    print(f"         hakscan -t {os.path.join(NUCLEI_TEMPLATES_DIR, 'http', 'exposures')} https://target.com")
+    return 0
+
+
+# ===========================================================================
 #  CLI
 # ===========================================================================
 
@@ -1002,6 +1191,8 @@ def main(argv=None) -> int:
     if argv[0] in ("version", "-version", "--version"):
         print(f"Hakscan v{VERSION}")
         return 0
+    if argv[0] in ("update-templates", "update", "ut"):
+        return update_templates()
 
     json_out = pop_opt(argv, "--json", "-o")
     delay = float(pop_opt(argv, "--delay") or 0.3)

@@ -1,0 +1,14 @@
+Hakscan
+Copyright (c) 2026 slayzbsss
+Licensed under the MIT License (see LICENSE).
+
+---------------------------------------------------------------------------
+Third-party content fetched at runtime (NOT bundled in this repository):
+
+nuclei-templates
+  The `hakscan update-templates` command downloads detection templates from
+  the nuclei-templates project by ProjectDiscovery:
+    https://github.com/projectdiscovery/nuclei-templates
+  Those templates are copyright (c) ProjectDiscovery and licensed under the
+  MIT License. They are downloaded to the user's machine (~/.hakscan) and are
+  not redistributed as part of Hakscan.

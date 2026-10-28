@@ -42,7 +42,27 @@ hakscan app.apk
 hakscan ./source-dir/
 ```
 
-## Custom templates
+## Templates
+
+Hakscan runs two template formats:
+
+### Official nuclei templates (YAML)
+
+Download the official community templates once, then run the supported subset:
+
+```bash
+hakscan update-templates                 # downloads ~14k templates to ~/.hakscan
+hakscan -t auto https://target.com       # run them (or point -t at a subfolder)
+hakscan -t ~/.hakscan/nuclei-templates/http/exposures https://target.com
+```
+
+Hakscan executes the common HTTP template subset (word/regex/status matchers,
+path lists, conditions). Templates using raw requests, DSL matchers, extractors
+or multi-step flows are skipped and counted. These templates are the work of
+ProjectDiscovery, distributed under the MIT license (see `NOTICE`); Hakscan only
+downloads and runs them locally.
+
+### Your own templates (JSON)
 
 Drop `.json` files in a directory and pass `-t <dir>`:
 
