@@ -34,8 +34,8 @@ import (
 )
 
 const (
-	version    = "4.2"
-	userAgent  = "Hakscan/4.2 (+authorized-security-testing)"
+	version    = "4.3"
+	userAgent  = "Hakscan/4.3 (+authorized-security-testing)"
 	httpTimeout = 12 * time.Second
 	maxBody    = 500_000
 	maxMember  = 25 * 1024 * 1024
