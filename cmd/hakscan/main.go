@@ -34,8 +34,8 @@ import (
 )
 
 const (
-	version    = "4.0"
-	userAgent  = "Hakscan/4.0 (+authorized-security-testing)"
+	version    = "4.1"
+	userAgent  = "Hakscan/4.1 (+authorized-security-testing)"
 	httpTimeout = 12 * time.Second
 	maxBody    = 500_000
 	maxMember  = 25 * 1024 * 1024
@@ -878,7 +878,7 @@ func (w *WebScanner) runNucleiTemplates(origin string, files []string) {
 		}
 		w.sleep()
 	}
-	w.report.add("nuclei templates executed", "info",
+	w.report.add("YAML templates executed", "info",
 		fmt.Sprintf("%d run, %d matched, %d skipped (unsupported construct or parse error).", run, matched, skipped))
 }
 
@@ -1602,7 +1602,7 @@ func isZip(path string) bool {
 
 func updateTemplates() int {
 	os.MkdirAll(hakscanHome(), 0755)
-	fmt.Println("[*] Downloading the official nuclei-templates (MIT, (c) ProjectDiscovery)...")
+	fmt.Println("[*] Downloading community YAML templates (MIT, (c) ProjectDiscovery - see NOTICE)...")
 	tmp := filepath.Join(os.TempDir(), "hakscan_templates.zip")
 	req, _ := http.NewRequest("GET", nucleiTemplatesZip, nil)
 	req.Header.Set("User-Agent", userAgent)
@@ -1768,12 +1768,13 @@ USAGE
   hakscan https://target.com                 web scan
   hakscan -u "https://t.com/p?id=1" --json r.json
   hakscan --passive https://target.com       no active injection tests
-  hakscan -t auto https://target.com         run official nuclei templates
-  hakscan -t dir/ https://target.com         run custom/nuclei templates in dir
+  hakscan -t auto https://target.com         run community YAML templates
+  hakscan -t dir/ https://target.com         run custom/YAML templates in a dir
+  hakscan -l targets.txt                     scan many targets from a file
   hakscan app.apk                            analyze a file (APK/ZIP/JAR/bin)
   hakscan ./dir/                             analyze a directory
   hakscan app.apk -t dir/                    + custom secret templates
-  hakscan update-templates                   download official nuclei-templates
+  hakscan update-templates                   download community YAML templates
   hakscan version | -h
 
 Authorized targets only. Scanning without permission is illegal.`
@@ -1796,6 +1797,7 @@ func main() {
 	delayStr := popOpt(&args, "--delay")
 	templates := popOpt(&args, "-t", "--templates")
 	passive := popFlag(&args, "--passive")
+	listFile := popOpt(&args, "-l", "-list", "--list")
 	target := popOpt(&args, "-u", "--url")
 
 	delay := 300 * time.Millisecond
@@ -1803,6 +1805,26 @@ func main() {
 		if d, err := time.ParseDuration(delayStr + "ms"); err == nil {
 			delay = d
 		}
+	}
+
+	if listFile != "" {
+		data, err := os.ReadFile(listFile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[!] cannot read list %s: %v\n", listFile, err)
+			os.Exit(2)
+		}
+		for _, line := range strings.Split(string(data), "\n") {
+			t := strings.TrimSpace(line)
+			if t == "" || strings.HasPrefix(t, "#") {
+				continue
+			}
+			rep := newWebScanner(t, delay, templates, !passive).run()
+			rep.print()
+			if jsonOut != "" {
+				writeJSON(rep, jsonOut)
+			}
+		}
+		return
 	}
 
 	if len(args) > 0 && args[0] == "file" {

@@ -1,4 +1,4 @@
-name: release
+name: 🎉 release
 on:
   push:
     tags:
@@ -6,19 +6,19 @@ on:
 permissions:
   contents: write
 jobs:
-  build-and-release:
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: Cross-compile binaries
-        run: ./build.sh
-      - name: Publish release
-        uses: softprops/action-gh-release@v2
+      - uses: goreleaser/goreleaser-action@v6
         with:
-          files: |
-            dist/hakscan-*
-            dist/SHA256SUMS
-          generate_release_notes: true
+          distribution: goreleaser
+          version: '~> v2'
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

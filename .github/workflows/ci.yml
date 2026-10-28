@@ -1,4 +1,4 @@
-name: ci
+name: 🔨 ci
 on:
   push:
     branches: [main]
@@ -11,5 +11,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go vet ./...
-      - run: go build -o /dev/null .
+      - name: vet
+        run: go vet ./...
+      - name: build
+        run: go build -o hakscan ./cmd/hakscan
