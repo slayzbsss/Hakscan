@@ -62,22 +62,22 @@ or multi-step flows are skipped and counted. These templates are the work of
 ProjectDiscovery, distributed under the MIT license (see `NOTICE`); Hakscan only
 downloads and runs them locally.
 
-### Your own templates (JSON)
+### Hakscan templates (JSON), sorted by category
 
-Drop `.json` files in a directory and pass `-t <dir>`:
+Hakscan's own templates live in a separate repository, sorted by category
+(web and APK kept separate):
 
-```json
-{
-  "name": "Exposed admin panel",
-  "severity": "medium",
-  "path": "/admin/login",
-  "matchers-condition": "and",
-  "matchers": [
-    {"type": "status", "values": [200]},
-    {"type": "word", "part": "body", "values": ["password", "login"]}
-  ]
-}
+**https://github.com/slayzbsss/hakscan-templates**
+
+```bash
+git clone https://github.com/slayzbsss/hakscan-templates.git
+hakscan -t hakscan-templates/web https://target.com   # web HTTP templates
+hakscan app.apk -t hakscan-templates/apk              # apk secret signatures
 ```
+
+Two kinds are supported: `kind: http` (web checks matched against an HTTP
+response) and `kind: secret` (extra regex signatures for the file/APK engine).
+Add your own by dropping a `.json` file in the matching category folder.
 
 ## License
 

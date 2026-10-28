@@ -630,6 +630,10 @@ class WebScanner:
             except (OSError, json.JSONDecodeError) as e:
                 self.report.add("Unreadable template", "info", f"{fp}: {e}")
                 continue
+            # secret-kind templates belong to the file engine, not the web scan
+            if not isinstance(tpl, dict) or tpl.get("kind") == "secret" \
+                    or not (tpl.get("matchers") or tpl.get("path")):
+                continue
             self._run_one_template(origin, tpl, os.path.basename(fp))
         if yaml_files:
             self._run_nuclei_templates(origin, yaml_files)
@@ -804,6 +808,9 @@ SECRET_PATTERNS = [
                 r"['\"]?\s*[:=]\s*['\"][^'\"\s]{8,}['\"]")),
 ]
 
+# Extra secret signatures loaded from "kind: secret" templates (file engine).
+EXTRA_SECRET_PATTERNS: list = []
+
 URL_PATTERN = re.compile(rb"https?://[A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]{4,}")
 IP_PATTERN = re.compile(rb"\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b")
 _PRINTABLE_RUN = re.compile(rb"[\x20-\x7e]{6,}")
@@ -836,8 +843,31 @@ def text_from_bytes(data: bytes) -> str:
     return extract_strings(data) if _looks_binary(data) else data.decode("utf-8", "replace")
 
 
+def load_secret_templates(path: str) -> list:
+    """Load 'kind: secret' JSON templates -> [(name, severity, compiled_regex)]."""
+    pats = []
+    if not os.path.isdir(path):
+        return pats
+    for r, _d, fs in os.walk(path):
+        for f in fs:
+            if not f.endswith(".json"):
+                continue
+            try:
+                with open(os.path.join(r, f), encoding="utf-8") as fh:
+                    t = json.load(fh)
+            except (OSError, json.JSONDecodeError):
+                continue
+            if isinstance(t, dict) and t.get("kind") == "secret" and t.get("regex"):
+                try:
+                    pats.append((t.get("name", "custom secret"),
+                                 t.get("severity", "low"), re.compile(t["regex"])))
+                except re.error:
+                    pass
+    return pats
+
+
 def scan_text_for_secrets(text: str, location: str, report: Report, seen: set):
-    for name, sev, pat in SECRET_PATTERNS:
+    for name, sev, pat in SECRET_PATTERNS + EXTRA_SECRET_PATTERNS:
         for m in pat.finditer(text):
             key = (name, m.group(0)[:40], location)
             if key in seen:
@@ -1072,10 +1102,16 @@ def analyze_directory(path: str, report: Report):
             scan_text_for_secrets(text_from_bytes(data), os.path.relpath(fp, path), report, seen)
 
 
-def analyze_file_target(target: str, json_out: str | None) -> int:
+def analyze_file_target(target: str, json_out: str | None, templates: str | None = None) -> int:
     if not os.path.exists(target):
         sys.stderr.write(f"[!] Target not found: {target}\n")
         return 2
+    EXTRA_SECRET_PATTERNS.clear()
+    if templates:
+        tdir = NUCLEI_TEMPLATES_DIR if templates in ("auto", "nuclei") else templates
+        EXTRA_SECRET_PATTERNS.extend(load_secret_templates(tdir))
+        if EXTRA_SECRET_PATTERNS:
+            print(f"[*] Loaded {len(EXTRA_SECRET_PATTERNS)} custom secret template(s)")
     report = Report(target=target, mode="file")
     if os.path.isdir(target):
         print(f"[*] Recursively analyzing directory: {target}")
@@ -1204,7 +1240,7 @@ def main(argv=None) -> int:
         if len(argv) < 2:
             sys.stderr.write("[!] usage: hakscan file <path>\n")
             return 2
-        return analyze_file_target(argv[1], json_out)
+        return analyze_file_target(argv[1], json_out, templates)
 
     if target is None:
         positional = [a for a in argv if not a.startswith("-")]
@@ -1215,7 +1251,7 @@ def main(argv=None) -> int:
         return 2
 
     if os.path.exists(target):
-        return analyze_file_target(target, json_out)
+        return analyze_file_target(target, json_out, templates)
 
     report = WebScanner(target, delay, templates, active=not passive).run()
     print_report(report)
