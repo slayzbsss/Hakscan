@@ -1,6 +1,6 @@
 # Maintainer: slayzbsss
 pkgname=hakscan-bin
-pkgver=4.1
+pkgver=4.2
 pkgrel=1
 pkgdesc="Fast, self-contained web & file vulnerability scanner (prebuilt binary)"
 arch=('x86_64' 'aarch64')
@@ -10,8 +10,8 @@ provides=('hakscan')
 conflicts=('hakscan')
 source_x86_64=("hakscan-$pkgver-x86_64.tar.gz::$url/releases/download/v$pkgver/hakscan_${pkgver}_linux_amd64.tar.gz")
 source_aarch64=("hakscan-$pkgver-aarch64.tar.gz::$url/releases/download/v$pkgver/hakscan_${pkgver}_linux_arm64.tar.gz")
-sha256sums_x86_64=('1f06c0901ff934d1b473d2de2e3d2422b5d11e17fadc92b82acc19859919d0c2')
-sha256sums_aarch64=('48637316455d913fc1e1d6fb513a2219b264a9d518e86017eebc7ccea2cc2ba8')
+sha256sums_x86_64=('3ba6d6181959d940a398483c1190120454bcff0c089d0dcdd91770c64a7b8654')
+sha256sums_aarch64=('9ff83ac687ce7a648050d79120c3c4764e0768d2691556ea3957940f92b46d86')
 
 package() {
   install -Dm755 hakscan "$pkgdir/usr/bin/hakscan"

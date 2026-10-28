@@ -1,6 +1,6 @@
 # Maintainer: slayzbsss
 pkgname=hakscan
-pkgver=4.1
+pkgver=4.2
 pkgrel=1
 pkgdesc="Fast, self-contained web & file vulnerability scanner"
 arch=('x86_64' 'aarch64')
@@ -10,7 +10,7 @@ makedepends=('go')
 provides=('hakscan')
 conflicts=('hakscan-bin')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('9e90d98d94c4c52ab407b508b7851633f8eb59ee2050a8eafd480f50555421ff')
+sha256sums=('4470d1b24166f70752b247a81e73133ec12d479c5b511133c7983ac25dfcfd03')
 
 build() {
   cd "Hakscan-$pkgver"
