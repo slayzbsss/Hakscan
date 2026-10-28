@@ -1,7 +1,8 @@
 # Hakscan
 
-Self-contained web vulnerability scanner and file analyzer, written in pure
-Python (standard library only). No installation, no external dependencies.
+Self-contained web vulnerability scanner and file analyzer. Ships as a single
+native binary (Go) - like nuclei - with no runtime dependencies. A Python
+implementation (`hakscan.py`) is also included.
 
 > **Authorized use only.** Scan targets you own or have explicit written
 > permission to test (e.g. a bug bounty program's scope). Scanning without
@@ -33,25 +34,25 @@ Python (standard library only). No installation, no external dependencies.
 
 ## Install
 
-**Option 1 - download the binary (like nuclei):** grab `hakscan` from the
-[Releases](https://github.com/slayzbsss/Hakscan/releases) page, then:
+**Download the binary (like nuclei)** from the
+[Releases](https://github.com/slayzbsss/Hakscan/releases) page for your OS, then:
 
 ```bash
-chmod +x hakscan
-./hakscan -h
+chmod +x hakscan-linux-amd64
+./hakscan-linux-amd64 -h
 ```
 
-No Python required - it is a self-contained executable.
+Available builds: `linux-amd64`, `linux-arm64`, `darwin-amd64`, `darwin-arm64`,
+`windows-amd64`. No dependencies required.
 
-**Option 2 - build it yourself:**
+**Build from source** (needs Go):
 
 ```bash
 git clone https://github.com/slayzbsss/Hakscan.git
 cd Hakscan
-./build.sh          # produces dist/hakscan
+./build.sh            # cross-compiles all platforms into dist/
+# or just:  go build -o hakscan .
 ```
-
-**Option 3 - run from source:** `python3 hakscan.py -h`
 
 ## Usage
 

@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
-# Build a standalone single-file Hakscan binary (like nuclei) with PyInstaller.
-# Result: dist/hakscan  (no Python needed to run it)
+# Build native Hakscan binaries (Go) - like nuclei. No runtime dependencies.
 set -e
 cd "$(dirname "$0")"
-python3 -m venv .buildenv
-./.buildenv/bin/pip install -q --upgrade pip pyinstaller pyyaml
-./.buildenv/bin/pyinstaller --onefile --name hakscan --hidden-import yaml --console hakscan.py
-echo
-echo "Done -> dist/hakscan"
-./dist/hakscan version
+mkdir -p dist
+b(){ GOOS=$1 GOARCH=$2 go build -trimpath -ldflags="-s -w" -o "dist/$3" . && echo "  dist/$3"; }
+echo "Building..."
+b linux   amd64 hakscan-linux-amd64
+b linux   arm64 hakscan-linux-arm64
+b darwin  amd64 hakscan-darwin-amd64
+b darwin  arm64 hakscan-darwin-arm64
+b windows amd64 hakscan-windows-amd64.exe
+( cd dist && sha256sum * > SHA256SUMS )
+echo "Done -> dist/"
