@@ -3,6 +3,10 @@
 </h1>
 
 <p align="center">
+<strong>English</strong> • <a href="README_FR.md">Français</a>
+</p>
+
+<p align="center">
 <a href="https://github.com/slayzbsss/Hakscan/releases"><img src="https://img.shields.io/github/v/release/slayzbsss/Hakscan"></a>
 <a href="https://github.com/slayzbsss/Hakscan/blob/main/LICENSE.md"><img src="https://img.shields.io/github/license/slayzbsss/Hakscan"></a>
 <img src="https://img.shields.io/github/go-mod/go-version/slayzbsss/Hakscan">

@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Hakscan template",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": ["path", "matchers"],
+      "properties": {
+        "kind": {"const": "http"},
+        "name": {"type": "string"},
+        "severity": {"enum": ["info", "low", "medium", "high", "critical"]},
+        "description": {"type": "string"},
+        "path": {"type": "string"},
+        "method": {"type": "string"},
+        "matchers-condition": {"enum": ["and", "or"]},
+        "matchers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {"enum": ["status", "word", "regex"]},
+              "part": {"enum": ["body", "header", "all"]},
+              "values": {"type": "array"},
+              "all": {"type": "boolean"}
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": ["kind", "regex"],
+      "properties": {
+        "kind": {"const": "secret"},
+        "name": {"type": "string"},
+        "severity": {"enum": ["info", "low", "medium", "high", "critical"]},
+        "regex": {"type": "string"}
+      }
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "kind": "http",
+  "name": "Exposed .env file",
+  "severity": "critical",
+  "path": "/.env",
+  "matchers-condition": "and",
+  "matchers": [
+    {"type": "status", "values": [200]},
+    {"type": "regex", "part": "body", "values": ["(?m)^[A-Z0-9_]+\\s*="]}
+  ]
+}
