@@ -1,0 +1,10 @@
+{
+  "name": "Exposed admin panel",
+  "severity": "medium",
+  "path": "/admin/login",
+  "matchers-condition": "and",
+  "matchers": [
+    {"type": "status", "values": [200]},
+    {"type": "word", "part": "body", "values": ["password", "login"]}
+  ]
+}
