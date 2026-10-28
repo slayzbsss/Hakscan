@@ -31,6 +31,28 @@ Python (standard library only). No installation, no external dependencies.
 - Secret/credential scanner (AWS, GCP, GitHub, Stripe, Slack, JWT, DB URIs, ...)
 - Endpoint and hardcoded-IP extraction
 
+## Install
+
+**Option 1 - download the binary (like nuclei):** grab `hakscan` from the
+[Releases](https://github.com/slayzbsss/Hakscan/releases) page, then:
+
+```bash
+chmod +x hakscan
+./hakscan -h
+```
+
+No Python required - it is a self-contained executable.
+
+**Option 2 - build it yourself:**
+
+```bash
+git clone https://github.com/slayzbsss/Hakscan.git
+cd Hakscan
+./build.sh          # produces dist/hakscan
+```
+
+**Option 3 - run from source:** `python3 hakscan.py -h`
+
 ## Usage
 
 ```bash

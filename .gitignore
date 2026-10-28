@@ -5,3 +5,7 @@ report.json
 *.apk
 *.log
 .DS_Store
+.buildenv/
+build/
+dist/
+*.spec
