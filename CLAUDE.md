@@ -11,10 +11,18 @@ make test
 go run ./cmd/hakscan https://example.com
 ```
 
-## Layout
+## Layout (nuclei-style)
 
-- `cmd/hakscan/main.go` — entrypoint and all engines (CLI, HTTP, web checks,
-  file/APK engine, AXML parser, secret scanner, template runner, reporting).
+- `cmd/hakscan/main.go` — thin CLI: flag parsing, banner, startup info, dispatch.
+- `pkg/output/` — `Finding`, `Report`, severities, console + JSON output, `Mask`.
+- `pkg/httpx/` — HTTP client (`Resp`, `DoHTTP`), `Version`, `UserAgent`.
+- `pkg/web/` — web engine: `WebScanner`, header/TLS/CORS checks, injections,
+  and the HTTP template runner.
+- `pkg/file/` — file engine: APK/ZIP archives, AndroidManifest (AXML) parser,
+  DEX string tables, ELF sections, secret/credential scanner.
+- `pkg/templates/` — template matching primitives (`NucleiMatch`, word/regex).
+- `pkg/update/` — version check (GitHub) + `update-templates`.
+- `lib/hakscan.go` — library SDK: `ScanWeb`, `ScanFile` returning `*output.Report`.
 - `.goreleaser.yml` — release build (triggered by `v*` tags via GitHub Actions).
 - Templates live in a separate repo: `slayzbsss/hakscan-templates`.
 
