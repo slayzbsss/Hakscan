@@ -1,19 +1,19 @@
-<h1 align="center"><img src="assets/logo.svg" alt="Hakscan" width="600"></h1>
+![hakscan](assets/hakscan-cover.png)
 
 <div align="center">
 
   `English` •
+  <a href="README_CN.md">`中文`</a> •
+  <a href="README_KR.md">`Korean`</a> •
+  <a href="README_ID.md">`Indonesia`</a> •
+  <a href="README_ES.md">`Spanish`</a> •
+  <a href="README_JP.md">`日本語`</a> •
+  <a href="README_PT-BR.md">`Portuguese`</a> •
+  <a href="README_TR.md">`Türkçe`</a> •
   <a href="README_FR.md">`Français`</a> •
-  <a href="README_ES.md">`Español`</a> •
-  <a href="README_PT-BR.md">`Português`</a> •
   <a href="README_DE.md">`Deutsch`</a> •
   <a href="README_IT.md">`Italiano`</a> •
-  <a href="README_CN.md">`中文`</a> •
-  <a href="README_JP.md">`日本語`</a> •
-  <a href="README_KR.md">`한국어`</a> •
   <a href="README_RU.md">`Русский`</a> •
-  <a href="README_TR.md">`Türkçe`</a> •
-  <a href="README_ID.md">`Indonesia`</a> •
   <a href="README_FA.md">`فارسی`</a> •
   <a href="README_AR.md">`العربية`</a> •
   <a href="README_HI.md">`हिन्दी`</a>
@@ -21,12 +21,15 @@
 </div>
 
 <p align="center">
+
 <a href="https://github.com/slayzbsss/Hakscan#documentation"><img src="https://img.shields.io/badge/Documentation-%23000000.svg?style=for-the-badge&logo=book&logoColor=white"></a>
-&nbsp;
-<a href="https://github.com/slayzbsss/hakscan-templates"><img src="https://img.shields.io/badge/Templates%20Library-%23000000.svg?style=for-the-badge&logo=github&logoColor=white"></a>
-&nbsp;
+&nbsp;&nbsp;
+<a href="https://github.com/slayzbsss/hakscan-templates"><img src="https://img.shields.io/badge/Templates Library-%23000000.svg?style=for-the-badge&logo=github&logoColor=white"></a>
+&nbsp;&nbsp;
 <a href="https://github.com/slayzbsss/Hakscan/discussions"><img src="https://img.shields.io/badge/Discussions-%235865F2.svg?style=for-the-badge&logo=github&logoColor=white"></a>
+
 <hr>
+
 </p>
 
 <br>
@@ -36,147 +39,215 @@
 - Simple JSON/YAML format for creating and customizing detection templates.
 - Web engine: headers, TLS, CORS, exposures, and active parameter tests (XSS, SQLi, SSTI, LFI, command injection, CRLF, open redirect).
 - File engine: built-in AndroidManifest.xml parser and secret/credential scanner for APK/AAB/JAR/ZIP and source trees.
-- Runs your own JSON templates and community YAML templates.
-- Ultra-light, cross-platform, and CI/CD friendly with JSON output.
-- Installable via package managers (AUR/yay, .deb, .rpm, .apk, Go).
+- Runs your own JSON templates and the community YAML templates.
+- Ultra-fast, dependency-free, and CI/CD friendly with JSON output.
+- Cross-platform single binary — installable via Go and package managers (AUR, .deb, .rpm, .apk).
 
+<br>
 <br>
 
 ## Table of Contents
 
-- [Get Started](#get-started)
-- [Documentation](#documentation)
-  - [Command Line Flags](#command-line-flags)
-  - [Single target scan](#single-target-scan)
-  - [Scanning multiple targets](#scanning-multiple-targets)
-  - [File & APK analysis](#file--apk-analysis)
-  - [Scanning with your custom template](#scanning-with-your-custom-template)
-- [Templates, Community and Contributions](#templates-community-and-contributions)
-- [Our Mission](#our-mission)
-- [Contributors](#contributors)
-- [License](#license)
+- [**`Get Started`**](#get-started)
+  - [_`1. Hakscan CLI`_](#1-hakscan-cli)
+- [**`Documentation`**](#documentation)
+  - [_`Installation`_](#installation)
+  - [_`Command Line Flags`_](#command-line-flags)
+  - [_`Single target scan`_](#single-target-scan)
+  - [_`Scanning multiple targets`_](#scanning-multiple-targets)
+  - [_`File & APK analysis`_](#file--apk-analysis)
+  - [_`Scanning with your custom template`_](#scanning-with-your-custom-template)
+- [**`Hakscan Templates, Community and Contributions`**](#hakscan-templates-community-and-contributions)
+- [**`Our Mission`**](#our-mission)
+- [**`Contributors`**](#contributors-heart) ❤
+- [**`License`**](#license)
 
+<br>
 <br>
 
 ## Get Started
 
-### 1. Hakscan CLI
+### **1. Hakscan CLI**
 
-Install Hakscan on your machine:
-
-```console
-go install -v github.com/slayzbsss/Hakscan/cmd/hakscan@latest
-# Arch Linux
-yay -S hakscan-bin
-sudo pacman -U https://github.com/slayzbsss/Hakscan/releases/latest/download/hakscan_4.3_linux_amd64.pkg.tar.zst
-```
-
-Or download a prebuilt binary from the [releases](https://github.com/slayzbsss/Hakscan/releases) page, or build from source with `make build`.
+_Install Hakscan on your machine and start scanning in seconds. Hakscan is a single self-contained binary with no runtime dependencies — point it at a target and go._
 
 > [!IMPORTANT]
-> Use Hakscan only against targets you own or are explicitly authorized to test (e.g. a bug bounty program's scope). Scanning without permission is illegal.
+> |**This project is in active development.** Expect breaking changes with releases; review the release changelog before updating.|
+> |:--------------------------------|
+> | Use Hakscan **only** against targets you own or are explicitly authorized to test (e.g. a bug bounty program's scope). Scanning without permission is illegal. |
 
+<br>
 <br>
 
 ## Documentation
+
+### Installation
+
+`hakscan` requires **go >= 1.24** to install from source. Run the following command to get the latest release:
+
+```sh
+go install -v github.com/slayzbsss/Hakscan/cmd/hakscan@latest
+```
+
+Or install from a package manager / prebuilt binary:
+
+```sh
+# Arch Linux (AUR)
+yay -S hakscan-bin
+
+# Arch Linux (release package)
+sudo pacman -U https://github.com/slayzbsss/Hakscan/releases/latest/download/hakscan_4.4_linux_amd64.pkg.tar.zst
+```
+
+Prebuilt binaries for Linux, macOS and Windows are available on the [**`releases`**](https://github.com/slayzbsss/Hakscan/releases) page. You can also build from source with `make build`.
 
 ### Command Line Flags
 
 To display all the flags for the tool:
 
-```console
+```sh
 hakscan -h
 ```
 
 <details>
   <summary>Expand full help flags</summary>
 
-```console
-Hakscan - web vulnerability scanner & file analyzer (native binary)
+```yaml
+Hakscan is a fast, template-based web & file vulnerability scanner
+focused on simplicity and shipping as a single native binary.
 
-USAGE
-  hakscan https://target.com                 web scan
-  hakscan -u "https://t.com/p?id=1" --json r.json
-  hakscan --passive https://target.com       no active injection tests
-  hakscan -t auto https://target.com         run community YAML templates
-  hakscan -t dir/ https://target.com         run custom/YAML templates in a dir
-  hakscan -l targets.txt                     scan many targets from a file
-  hakscan app.apk                            analyze a file (APK/ZIP/JAR/bin)
-  hakscan ./dir/                             analyze a directory
-  hakscan app.apk -t dir/                    + custom secret templates
-  hakscan update-templates                   download community YAML templates
-  hakscan version | -h
+Usage:
+  hakscan [flags] <target>
+
+Flags:
+TARGET:
+   -u, --url string    target URL/host to scan
+   -l, --list string   path to file with a list of targets (one per line)
+
+TEMPLATES:
+   -t, --templates string   run JSON/YAML templates from a directory ("auto" for community templates)
+       --passive            passive mode - no active injection tests (headers/TLS/exposures only)
+
+OUTPUT:
+   -o, --json string   write JSON report to the given file
+
+CONFIGURATIONS:
+       --delay int     delay between requests in milliseconds (default 300)
+
+FILE ENGINE:
+   hakscan <file>      analyze an APK/AAB/JAR/ZIP or binary (manifest + secret scan)
+   hakscan <dir>       recursively analyze a directory
+
+UPDATE:
+   update-templates    download / update community YAML templates
+
+DEBUG:
+   version                     show hakscan version
+       --disable-update-check  (-duc) skip the GitHub version check at startup
+   -h, --help                  show this help message
+
+EXAMPLES:
+Run a web scan on a single host:
+   $ hakscan https://example.com
+
+Run with custom templates:
+   $ hakscan -t ./templates/ https://example.com
+
+Run community YAML templates:
+   $ hakscan -t auto https://example.com
+
+Scan many targets with a JSON report:
+   $ hakscan -l targets.txt -o report.json
+
+Analyze a mobile app:
+   $ hakscan app.apk
+
+Authorized targets only. Scanning without permission is illegal.
 ```
 
 </details>
 
 ### Single target scan
 
-```console
+To perform a quick scan on a web application:
+
+```sh
 hakscan https://example.com
 ```
 
 ### Scanning multiple targets
 
-```console
+Hakscan can handle bulk scanning by providing a list of targets. You can use a file containing multiple URLs.
+
+```sh
 hakscan -l urls.txt
 ```
 
 ### File & APK analysis
 
-```console
+Point Hakscan at a file or a directory to run the file engine (AndroidManifest parser + secret/credential scanner) instead of a web scan.
+
+```sh
 hakscan app.apk
 hakscan ./source-dir/
 ```
 
 ### Scanning with your custom template
 
-```console
+To write and use your own template, create a `.json` (or `.yaml`) file with specific rules, then use it as follows.
+
+```sh
 hakscan -u https://example.com -t /path/to/your-templates/
 hakscan update-templates && hakscan -t auto https://example.com
 ```
 
 <br>
+<br>
 
-## Templates, Community and Contributions
+## Hakscan Templates, Community and Contributions 💎
 
-Hakscan templates define how requests are sent and how responses are matched. They live in a dedicated, category-sorted repository:
+[**Hakscan templates**](https://github.com/slayzbsss/hakscan-templates) are based on the concept of template files that define how requests will be sent and how responses are matched. This allows easy extensibility: the templates are written in a simple, human-readable format to quickly define the detection process.
 
-**https://github.com/slayzbsss/hakscan-templates**
-
-Two kinds are supported: `kind: http` (web checks) and `kind: secret` (file/APK signatures). Community YAML templates (HTTP subset) are supported too.
+Two kinds are supported: `kind: http` (web checks) and `kind: secret` (file/APK signatures). The community YAML templates (HTTP subset) are supported too, so you can run thousands of existing checks out of the box with `hakscan update-templates`.
 
 #### Examples
 
 | Use case | Hakscan template |
 | :--- | :--- |
-| Exposed Git repository | `web/exposures/git-config.json` |
-| Environment file disclosure | `web/exposures/env-file.json` |
-| Directory listing | `web/misconfiguration/directory-listing.json` |
-| Exposed phpinfo() | `web/misconfiguration/phpinfo.json` |
-| Admin / DB panels | `web/panels/phpmyadmin.json` |
-| WordPress user enumeration | `web/cms/wordpress-user-enum.json` |
-| Hardcoded secrets in APKs | `apk/secrets/*.json` |
+| Detect exposed Git repository | **`web/exposures/git-config.json`** |
+| Environment file disclosure | **`web/exposures/env-file.json`** |
+| Directory listing | **`web/misconfiguration/directory-listing.json`** |
+| Exposed phpinfo() | **`web/misconfiguration/phpinfo.json`** |
+| Admin / DB panels | **`web/panels/phpmyadmin.json`** |
+| WordPress user enumeration | **`web/cms/wordpress-user-enum.json`** |
+| Hardcoded secrets in APKs | **`apk/secrets/*.json`** |
 
+<br>
 <br>
 
 ## Our Mission
 
-Traditional vulnerability scanners are heavy, closed and hard to extend. Hakscan takes a different approach: a tiny, open, dependency-free engine where detection logic lives in human-readable templates, so anyone can encode what they learn about a target and re-run it anywhere — locally or in CI.
+Traditional vulnerability scanners are heavy, closed-source and hard to extend. Hakscan takes a different approach: a tiny, open, dependency-free engine where the detection logic lives in human-readable templates, so anyone can encode what they learn about a target and re-run it anywhere — locally or in CI.
+
+You can participate by contributing to our code or the [**`templates library`**](https://github.com/slayzbsss/hakscan-templates).
 
 <br>
+<br>
 
-## Contributors
+## Contributors :heart:
 
-Thanks to everyone who contributes code, templates and bug reports. ❤️ See the [contributors graph](https://github.com/slayzbsss/Hakscan/graphs/contributors).
+Thanks to all the amazing contributors for sending PRs and keeping this project updated. :heart:
 
 <p align="left">
-<a href="https://github.com/slayzbsss"><img src="https://github.com/slayzbsss.png" width="50" height="50" alt="slayzbsss" style="border-radius:50%"></a>
+<a href="https://github.com/slayzbsss"><img src="https://github.com/slayzbsss.png" width="50" height="50" alt="slayzbsss" style="max-width: 100%;"></a>
 </p>
 
 <br>
 <br>
+<br>
 
 <div align="center">
-  <sub><b>hakscan</b> is distributed under the <a href="https://github.com/slayzbsss/Hakscan/blob/main/LICENSE.md">MIT License</a></sub>
+
+  <sub>**`hakscan`** is distributed under [**MIT License**](https://github.com/slayzbsss/Hakscan/blob/main/LICENSE.md)</sub>
+
 </div>
