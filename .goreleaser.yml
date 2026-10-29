@@ -51,3 +51,9 @@ nfpms:
       - apk
       - archlinux
     bindir: /usr/bin
+
+announce:
+  discord:
+    enabled: true
+    author: GoReleaser
+    message_template: "**New Release: {{ .ProjectName }} {{ .Tag }}** is published! Check it out at {{ .ReleaseURL }}"
