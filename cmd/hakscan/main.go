@@ -48,55 +48,50 @@ func popFlag(args *[]string, names ...string) bool {
 	return hit
 }
 
-const helpText = `Hakscan is a fast, template-based web & file vulnerability scanner
-focused on simplicity and shipping as a single native binary.
+const helpText = `Hakscan is a fast, template-based web & file vulnerability scanner,
+shipped as a single dependency-free native binary.
 
 Usage:
   hakscan [flags] <target>
 
 Flags:
 TARGET:
-   -u, --url string    target URL/host to scan
-   -l, --list string   path to file with a list of targets (one per line)
+   -u, --url string          target URL/host to scan
+   -l, --list string         path to a file with targets to scan (one per line)
+   <file|dir>                analyze an APK/AAB/JAR/ZIP, DEX or ELF, or a directory
 
 TEMPLATES:
-   -t, --templates string   run JSON/YAML templates from a directory ("auto" for community templates)
-       --passive            passive mode - no active injection tests (headers/TLS/exposures only)
+   -t, --templates string    run JSON/YAML templates from a dir ("auto" = community set)
+
+SCAN:
+       --passive             passive only - no active injection probes (headers/TLS/exposures)
+       --delay int           delay between HTTP requests in milliseconds (default 300)
 
 OUTPUT:
-   -o, --json string   write JSON report to the given file
-
-CONFIGURATIONS:
-       --delay int     delay between requests in milliseconds (default 300)
-
-FILE ENGINE:
-   hakscan <file>      analyze an APK/AAB/JAR/ZIP, DEX or ELF
-                       (manifest, DEX & native-lib strings, assets, secrets)
-   hakscan <dir>       recursively analyze a directory
+   -o, --json string         write a JSON report to the given file
 
 UPDATE:
-   update-templates    download / update community YAML templates
+       update-templates      download / update the community template set
 
 DEBUG:
-   version                     show hakscan version
-       --disable-update-check  (-duc) skip the GitHub version check at startup
-   -h, --help                  show this help message
+       version               show the hakscan version
+       --disable-update-check   skip the GitHub version check at startup (alias -duc)
+   -h, --help                show this help message
 
 EXAMPLES:
-Run a web scan on a single host:
+   # Web scan on a single host
    $ hakscan https://example.com
 
-Run with custom templates:
+   # Custom templates, or the community set
    $ hakscan -t ./templates/ https://example.com
-
-Run community YAML templates:
    $ hakscan -t auto https://example.com
 
-Scan many targets with a JSON report:
+   # Many targets, JSON report
    $ hakscan -l targets.txt -o report.json
 
-Analyze a mobile app:
+   # Analyze a mobile app or a native binary
    $ hakscan app.apk
+   $ hakscan ./libnative.so
 
 Authorized targets only. Scanning without permission is illegal.`
 

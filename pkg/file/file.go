@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/slayzbsss/Hakscan/pkg/output"
@@ -66,6 +67,104 @@ var dangerousPerms = map[string]bool{
 	"android.permission.WRITE_EXTERNAL_STORAGE": true, "android.permission.READ_CALL_LOG": true,
 	"android.permission.READ_PHONE_STATE": true, "android.permission.SYSTEM_ALERT_WINDOW": true,
 	"android.permission.REQUEST_INSTALL_PACKAGES": true,
+}
+
+// ===========================================================================
+//  Anti-analysis / hardening indicators (detection only)
+// ===========================================================================
+
+// antiAnalysisIndicators are string signatures that reveal defensive / anti-
+// reversing techniques inside a binary or app. They are reported for triage:
+// knowing an app ships root/Frida/emulator/debugger detection or is packed
+// tells an assessor that dynamic analysis will need extra work.
+var antiAnalysisIndicators = []struct {
+	name, sev, detail string
+	subs              []string
+}{
+	{"Debugger detection (ptrace)", "info", "Self-checks via ptrace/TracerPid to resist debugging.",
+		[]string{"ptrace", "tracerpid", "/proc/self/status"}},
+	{"Frida / instrumentation detection", "info", "Searches for Frida - the app tries to spot dynamic instrumentation.",
+		[]string{"frida", "gum-js-loop", "re.frida.server", "frida-server", "/data/local/tmp/re.frida"}},
+	{"Xposed / hooking detection", "info", "Looks for Xposed/EdXposed/LSPosed hooking frameworks.",
+		[]string{"de.robv.android.xposed", "xposedbridge", "edxposed", "lsposed"}},
+	{"Root detection", "info", "Checks for root (su/Magisk/SuperSU) to refuse running on rooted devices.",
+		[]string{"/system/bin/su", "/system/xbin/su", "eu.chainfire.supersu", "com.topjohnwu.magisk", "superuser.apk"}},
+	{"Emulator / VM detection", "info", "Fingerprints emulators/sandboxes (QEMU, Genymotion, goldfish).",
+		[]string{"goldfish", "ranchu", "genymotion", "/dev/socket/qemud", "qemu_trace", "vboxguest", "ro.kernel.qemu"}},
+	{"Debug/secure build-prop checks", "info", "Reads ro.debuggable/ro.secure to detect debug or insecure builds.",
+		[]string{"ro.debuggable", "ro.secure", "isdebuggerconnected"}},
+	{"UPX packer", "medium", "Binary appears packed with UPX; static analysis is obstructed.",
+		[]string{"upx!", "this file is packed with the upx", "$id: upx"}},
+}
+
+// detectIndicators records which anti-analysis signatures appear in text.
+func detectIndicators(text string, hits map[string]bool) {
+	low := strings.ToLower(text)
+	for _, ind := range antiAnalysisIndicators {
+		if hits[ind.name] {
+			continue
+		}
+		for _, s := range ind.subs {
+			if strings.Contains(low, s) {
+				hits[ind.name] = true
+				break
+			}
+		}
+	}
+}
+
+// reportIndicators emits one finding per detected indicator (stable order).
+func reportIndicators(hits map[string]bool, location string, rep *output.Report) {
+	for _, ind := range antiAnalysisIndicators {
+		if hits[ind.name] {
+			rep.Add("Anti-analysis: "+ind.name, ind.sev, ind.detail, location)
+		}
+	}
+}
+
+// apkProtectors maps native-library name fragments to known commercial
+// packers / app shielding (DexGuard-class) products.
+var apkProtectors = []struct{ frag, name string }{
+	{"libjiagu", "Qihoo 360 Jiagu"},
+	{"libdexprotector", "DexProtector"},
+	{"libshella", "Bangcle SecShell"},
+	{"libshellx", "Bangcle SecShell"},
+	{"libsecexe", "Bangcle"},
+	{"libsecmain", "Bangcle"},
+	{"libsecshell", "Bangcle"},
+	{"libdexhelper", "SecNeo"},
+	{"libmobisec", "Alibaba MobiSec"},
+	{"libnesec", "NetEase"},
+	{"libapkprotect", "ApkProtect"},
+	{"libpairipcore", "Google Play PairIP"},
+	{"libmetasec", "ByteDance metasec"},
+	{"libvdog", "Virbox Protector"},
+}
+
+// apkFrameworks maps file fragments to cross-platform / runtime frameworks.
+var apkFrameworks = []struct{ frag, name string }{
+	{"libflutter.so", "Flutter"},
+	{"index.android.bundle", "React Native"},
+	{"libreactnativejni.so", "React Native"},
+	{"libhermes.so", "React Native (Hermes)"},
+	{"libunity.so", "Unity"},
+	{"libil2cpp.so", "Unity (IL2CPP)"},
+	{"libmonodroid.so", "Xamarin/.NET"},
+	{"cordova.js", "Cordova/Ionic"},
+}
+
+func sortedKeys(m map[string]bool) []string {
+	ks := make([]string, 0, len(m))
+	for k := range m {
+		ks = append(ks, k)
+	}
+	sort.Strings(ks)
+	return ks
+}
+
+func atoiSafe(s string) (int, bool) {
+	n, err := strconv.Atoi(strings.TrimSpace(s))
+	return n, err == nil
 }
 
 func looksBinary(data []byte) bool {
@@ -339,11 +438,29 @@ func analyzeManifest(data []byte, rep *output.Report) {
 			if _, ok := e.attrs["networkSecurityConfig"]; ok {
 				rep.Add("Network Security Config present", "info", "Inspect it: may allow cleartext or custom CAs.", "application")
 			}
+			if e.attrs["requestLegacyExternalStorage"] == "true" {
+				rep.Add("Legacy external storage requested", "info", `requestLegacyExternalStorage="true": opts out of scoped storage.`, "application")
+			}
+		case "manifest":
+			if v := e.attrs["sharedUserId"]; v != "" {
+				rep.Add("sharedUserId set", "low", "android:sharedUserId shares the UID and private data across apps (legacy, risky).", "manifest", v)
+			}
+		case "uses-sdk":
+			if n, ok := atoiSafe(e.attrs["minSdkVersion"]); ok && n > 0 && n < 24 {
+				rep.Add(fmt.Sprintf("Low minSdkVersion (%d)", n), "low", "Runs on old Android versions with weaker platform hardening and unpatched bugs.", "uses-sdk")
+			}
+		case "permission":
+			if pl := strings.ToLower(e.attrs["protectionLevel"]); pl == "" || pl == "normal" {
+				rep.Add("Custom permission with weak protectionLevel", "low", "protectionLevel normal/none: any installed app can hold this permission.", "permission", e.attrs["name"])
+			}
 		case "activity", "service", "receiver", "provider":
 			if e.attrs["exported"] == "true" {
 				if _, ok := e.attrs["permission"]; !ok {
 					rep.Add("Exported component without permission: "+e.tag, "medium", "Reachable by other apps with no protection.", e.attrs["name"])
 				}
+			}
+			if e.tag == "provider" && e.attrs["exported"] == "true" && e.attrs["grantUriPermissions"] == "true" {
+				rep.Add("Exported provider grants URI permissions", "medium", "Exported content provider with grantUriPermissions - potential data exposure / path traversal.", e.attrs["name"])
 			}
 		case "uses-permission":
 			if n := e.attrs["name"]; n != "" {
@@ -488,6 +605,7 @@ func analyzeELF(data []byte, location string, rep *output.Report, seen map[seenK
 		meta += ", stripped"
 	}
 	rep.Add("ELF binary analyzed ("+meta+")", "info", "Parsed ELF sections.", location)
+	analyzeELFHardening(f, location, rep)
 	var buf []byte
 	for _, s := range f.Sections {
 		if !elfStringSections[s.Name] || s.Size == 0 || s.Size > maxMember {
@@ -505,6 +623,81 @@ func analyzeELF(data []byte, location string, rep *output.Report, seen map[seenK
 	collectURLsIPs(buf, urls, ips)
 }
 
+// analyzeELFHardening reports missing exploit mitigations and insecure library
+// search paths. Per-finding severities are kept low/medium - these are posture
+// signals, not confirmed vulnerabilities.
+func analyzeELFHardening(f *elf.File, location string, rep *output.Report) {
+	// PIE only matters for main executables; shared libs (.so) are always ET_DYN.
+	if f.Type == elf.ET_EXEC {
+		rep.Add("No PIE (position-dependent executable)", "low",
+			"Built without -pie; the executable image is not randomized (weakens ASLR).", location)
+	}
+
+	rwx, execStack := false, false
+	relro := false
+	for _, p := range f.Progs {
+		if p.Type == elf.PT_GNU_STACK && p.Flags&elf.PF_X != 0 {
+			execStack = true
+		}
+		if p.Type == elf.PT_LOAD && p.Flags&elf.PF_W != 0 && p.Flags&elf.PF_X != 0 {
+			rwx = true
+		}
+		if p.Type == elf.PT_GNU_RELRO {
+			relro = true
+		}
+	}
+	if execStack {
+		rep.Add("Executable stack", "medium", "GNU_STACK is executable; NX is not enforced for the stack.", location)
+	}
+	if rwx {
+		rep.Add("Writable + executable segment (W^X violation)", "medium", "A PT_LOAD segment is both writable and executable.", location)
+	}
+
+	bindNow := false
+	if v, err := f.DynValue(elf.DT_FLAGS); err == nil && len(v) > 0 && v[0]&uint64(elf.DF_BIND_NOW) != 0 {
+		bindNow = true
+	}
+	if v, err := f.DynValue(elf.DT_FLAGS_1); err == nil && len(v) > 0 && v[0]&uint64(elf.DF_1_NOW) != 0 {
+		bindNow = true
+	}
+	switch {
+	case !relro:
+		rep.Add("No RELRO", "low", "The GOT stays writable at runtime (no GNU_RELRO segment).", location)
+	case !bindNow:
+		rep.Add("Partial RELRO", "info", "GNU_RELRO present but lazy binding is on; full RELRO (BIND_NOW) not enforced.", location)
+	}
+
+	if syms, err := f.ImportedSymbols(); err == nil && len(syms) > 0 {
+		canary := false
+		for _, s := range syms {
+			if s.Name == "__stack_chk_fail" {
+				canary = true
+				break
+			}
+		}
+		if !canary {
+			rep.Add("No stack canary", "low", "No __stack_chk_fail import; stack-smashing protection is likely disabled.", location)
+		}
+	}
+
+	for _, tag := range []elf.DynTag{elf.DT_RPATH, elf.DT_RUNPATH} {
+		vals, err := f.DynString(tag)
+		if err != nil {
+			continue
+		}
+		for _, v := range vals {
+			for _, part := range strings.Split(v, ":") {
+				if part == "." || strings.HasPrefix(part, "./") || strings.Contains(part, "/tmp") ||
+					(part != "" && !strings.HasPrefix(part, "/") && !strings.HasPrefix(part, "$")) {
+					rep.Add("Insecure RPATH/RUNPATH", "low",
+						"A relative or world-writable library search path allows library hijacking.", location, v)
+					break
+				}
+			}
+		}
+	}
+}
+
 func analyzeArchive(path string, rep *output.Report) {
 	zr, err := zip.OpenReader(path)
 	if err != nil {
@@ -515,6 +708,11 @@ func analyzeArchive(path string, rep *output.Report) {
 	seen := map[seenKey]bool{}
 	urls := map[string]bool{}
 	ips := map[string]bool{}
+	indHits := map[string]bool{}
+	soSeen := map[string]bool{}
+	protSet := map[string]bool{}
+	fwSet := map[string]bool{}
+	var fridaGadget, debugSigned bool
 	dexCount, elfCount, assetCount := 0, 0, 0
 	for _, f := range zr.File {
 		if f.FileInfo().IsDir() || f.UncompressedSize64 > maxMember {
@@ -526,6 +724,26 @@ func analyzeArchive(path string, rep *output.Report) {
 		}
 		data, _ := io.ReadAll(io.LimitReader(rc, maxMember))
 		rc.Close()
+		ln := strings.ToLower(f.Name)
+		for _, p := range apkProtectors {
+			if strings.Contains(ln, p.frag) {
+				protSet[p.name] = true
+			}
+		}
+		for _, fw := range apkFrameworks {
+			if strings.Contains(ln, fw.frag) {
+				fwSet[fw.name] = true
+			}
+		}
+		if strings.Contains(ln, "frida-gadget") || strings.HasSuffix(ln, "/libgadget.so") {
+			fridaGadget = true
+		}
+		if strings.HasPrefix(f.Name, "META-INF/") &&
+			(strings.HasSuffix(ln, ".rsa") || strings.HasSuffix(ln, ".dsa") || strings.HasSuffix(ln, ".ec")) {
+			if bytes.Contains(data, []byte("Android Debug")) {
+				debugSigned = true
+			}
+		}
 		if filepath.Base(f.Name) == "AndroidManifest.xml" && !strings.Contains(f.Name, "/") {
 			analyzeManifest(data, rep)
 		}
@@ -538,11 +756,31 @@ func analyzeArchive(path string, rep *output.Report) {
 			analyzeDex(data, f.Name, rep, seen, urls, ips)
 		case isELF(data):
 			elfCount++
-			analyzeELF(data, f.Name, rep, seen, urls, ips)
+			if base := filepath.Base(f.Name); !soSeen[base] {
+				soSeen[base] = true
+				analyzeELF(data, f.Name, rep, seen, urls, ips)
+			}
 		}
 		scanSecrets(textFromBytes(data), f.Name, rep, seen)
 		collectURLsIPs(data, urls, ips)
+		detectIndicators(textFromBytes(data), indHits)
 	}
+	for _, name := range sortedKeys(protSet) {
+		rep.Add("APK protector/packer: "+name, "low",
+			"Commercial app shielding / anti-tamper is present; expect obfuscation and runtime self-defense.", "lib/")
+	}
+	for _, name := range sortedKeys(fwSet) {
+		rep.Add("Framework detected: "+name, "info", "Cross-platform / runtime framework identified.", "lib/")
+	}
+	if fridaGadget {
+		rep.Add("Frida gadget bundled", "medium",
+			"A Frida gadget library is shipped - the app is likely repackaged/instrumented for dynamic hooking.", "lib/")
+	}
+	if debugSigned {
+		rep.Add("APK signed with debug certificate", "high",
+			"Signed with the Android debug key (CN=Android Debug), not a release key - not a production signature.", "META-INF/")
+	}
+	reportIndicators(indHits, "application", rep)
 	if dexCount > 0 {
 		rep.Add(fmt.Sprintf("Android application (%d DEX file(s))", dexCount), "info", "Dalvik bytecode found and analyzed.", "classes.dex")
 	}
@@ -573,6 +811,7 @@ func analyzeSingleFile(path string, rep *output.Report) {
 	seen := map[seenKey]bool{}
 	urls := map[string]bool{}
 	ips := map[string]bool{}
+	indHits := map[string]bool{}
 	switch {
 	case isDex(data):
 		analyzeDex(data, name, rep, seen, urls, ips)
@@ -581,6 +820,8 @@ func analyzeSingleFile(path string, rep *output.Report) {
 	}
 	scanSecrets(textFromBytes(data), name, rep, seen)
 	collectURLsIPs(data, urls, ips)
+	detectIndicators(textFromBytes(data), indHits)
+	reportIndicators(indHits, name, rep)
 	if len(urls) > 0 {
 		rep.Add(fmt.Sprintf("Referenced network endpoints (%d)", len(urls)), "info", "Domains extracted - recon / attack surface leads.", "", joinSorted(urls, 15))
 	}
