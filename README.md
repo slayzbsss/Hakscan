@@ -94,7 +94,13 @@ This downloads the right prebuilt binary for your OS/architecture and installs i
 <details>
   <summary>Other installation methods</summary>
 
-**Windows** — download the `.zip` from the [**`releases`**](https://github.com/slayzbsss/Hakscan/releases/latest) page and add the extracted `hakscan.exe` to your `PATH`.
+**Windows** — in a PowerShell terminal:
+
+```powershell
+irm https://raw.githubusercontent.com/slayzbsss/Hakscan/main/install.ps1 | iex
+```
+
+Or download the `.zip` from the [**`releases`**](https://github.com/slayzbsss/Hakscan/releases/latest) page and add the extracted `hakscan.exe` to your `PATH`.
 
 **With Go** (requires go >= 1.27):
 
