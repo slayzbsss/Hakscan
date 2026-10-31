@@ -30,7 +30,18 @@ Opens archives (APK/AAB/JAR/ZIP) and directories, scans every member for
 secrets with a regex signature set, extracts referenced endpoints and IPs, and
 parses the binary `AndroidManifest.xml` (string pool + start-element chunks) to
 flag `debuggable`, `allowBackup`, cleartext traffic, exported components,
-dangerous permissions and embedded API keys.
+dangerous permissions, embedded API keys, low `minSdkVersion`, `sharedUserId`,
+weak custom-permission `protectionLevel` and exported providers that grant URI
+permissions.
+
+For native code it parses ELF binaries (standalone or `lib/*.so`) and reports
+missing exploit mitigations (PIE, RELRO, stack canary, NX/executable stack,
+W^X segments, insecure RPATH/RUNPATH). Across binaries, DEX and assets it
+flags anti-analysis posture (ptrace/Frida/Xposed/root/emulator/debug-prop
+checks, UPX packing) and, for APKs, commercial packers/protectors
+(Jiagu, Bangcle, DexProtector, PairIP, ...), cross-platform frameworks
+(Flutter/React Native/Unity/Xamarin/Cordova), a bundled Frida gadget and
+debug-certificate signing. Detection only - these are triage signals.
 
 ## Templates
 

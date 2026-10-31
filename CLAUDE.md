@@ -19,7 +19,8 @@ go run ./cmd/hakscan https://example.com
 - `pkg/web/` — web engine: `WebScanner`, header/TLS/CORS checks, injections,
   and the HTTP template runner.
 - `pkg/file/` — file engine: APK/ZIP archives, AndroidManifest (AXML) parser,
-  DEX string tables, ELF sections, secret/credential scanner.
+  DEX string tables, ELF sections + hardening/mitigation checks,
+  anti-analysis/packer/framework detection, secret/credential scanner.
 - `pkg/templates/` — template matching primitives (`NucleiMatch`, word/regex).
 - `pkg/update/` — version check (GitHub) + `update-templates`.
 - `lib/hakscan.go` — library SDK: `ScanWeb`, `ScanFile` returning `*output.Report`.
