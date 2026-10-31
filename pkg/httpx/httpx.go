@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	Version     = "4.5"
-	UserAgent   = "Hakscan/4.5 (+authorized-security-testing)"
+	Version     = "4.6"
+	UserAgent   = "Hakscan/4.6 (+authorized-security-testing)"
 	httpTimeout = 12 * time.Second
 	maxBody     = 500_000
 )

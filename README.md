@@ -83,13 +83,26 @@ _Install Hakscan on your machine and start scanning in seconds. Hakscan is a sin
 
 ### Installation
 
-`hakscan` requires **go >= 1.24** to install successfully. Run the following command to get the latest release:
+`hakscan` requires **go >= 1.27** to install successfully. Run the following command to get the latest release:
 
 ```sh
 go install -v github.com/slayzbsss/Hakscan/cmd/hakscan@latest
 ```
 
-Prebuilt binaries for Linux, macOS and Windows are available on the [**`releases`**](https://github.com/slayzbsss/Hakscan/releases) page.
+`go install` places the binary in `$(go env GOPATH)/bin` (usually `~/go/bin`). If
+`hakscan: command not found`, that directory is not on your `PATH`:
+
+```sh
+export PATH="$PATH:$(go env GOPATH)/bin"   # add to ~/.bashrc or ~/.zshrc to persist
+```
+
+Prebuilt binaries for Linux, macOS and Windows — plus `.deb`, `.rpm`, `.apk` and
+Arch packages — are on the [**`releases`**](https://github.com/slayzbsss/Hakscan/releases)
+page. On Debian/Ubuntu, for example:
+
+```sh
+sudo dpkg -i hakscan_*_linux_amd64.deb   # installs to /usr/bin/hakscan
+```
 
 ### Command Line Flags
 
@@ -103,55 +116,52 @@ hakscan -h
   <summary>Expand full help flags</summary>
 
 ```yaml
-Hakscan is a fast, template-based web & file vulnerability scanner
-focused on simplicity and shipping as a single native binary.
+Hakscan is a fast, template-based web & file vulnerability scanner,
+shipped as a single dependency-free native binary.
 
 Usage:
   hakscan [flags] <target>
 
 Flags:
 TARGET:
-   -u, --url string    target URL/host to scan
-   -l, --list string   path to file with a list of targets (one per line)
+   -u, --url string             target URL/host to scan
+   -l, --list string            path to a file with targets to scan (one per line)
+   <file|dir>                   analyze an APK/AAB/JAR/ZIP, DEX or ELF, or a directory
 
 TEMPLATES:
-   -t, --templates string   run JSON/YAML templates from a directory ("auto" for community templates)
-       --passive            passive mode - no active injection tests (headers/TLS/exposures only)
+   -t, --templates string       run JSON/YAML templates from a directory ("auto" = community set)
+
+SCAN:
+       --passive                passive only - no active injection probes (headers, TLS, exposures)
+       --delay int              delay between HTTP requests in milliseconds (default 300)
 
 OUTPUT:
-   -o, --json string   write JSON report to the given file
-
-CONFIGURATIONS:
-       --delay int     delay between requests in milliseconds (default 300)
-
-FILE ENGINE:
-   hakscan <file>      analyze an APK/AAB/JAR/ZIP or binary (manifest + secret scan)
-   hakscan <dir>       recursively analyze a directory
+   -o, --json string            write a JSON report to the given file
 
 UPDATE:
-   update-templates    download / update community YAML templates
+       update-templates         download / update the community template set
 
 DEBUG:
-   version                     show hakscan version
-       --disable-update-check  (-duc) skip the GitHub version check at startup
-   -h, --help                  show this help message
+       version                  show the hakscan version
+   -duc, --disable-update-check skip the GitHub version check at startup
+   -h, --help                   show this help message
 
 EXAMPLES:
-Run a web scan on a single host:
+   # Web scan on a single host
    $ hakscan https://example.com
 
-Run with custom templates:
+   # Custom templates, or the community set
    $ hakscan -t ./templates/ https://example.com
-
-Run community YAML templates:
    $ hakscan -t auto https://example.com
 
-Scan many targets with a JSON report:
+   # Many targets, with a JSON report
    $ hakscan -l targets.txt -o report.json
 
-Analyze a mobile app:
+   # Analyze a mobile app or a native binary
    $ hakscan app.apk
+   $ hakscan ./libnative.so
 
+Documentation: https://github.com/slayzbsss/Hakscan
 Authorized targets only. Scanning without permission is illegal.
 ```
 

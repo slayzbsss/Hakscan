@@ -56,27 +56,27 @@ Usage:
 
 Flags:
 TARGET:
-   -u, --url string          target URL/host to scan
-   -l, --list string         path to a file with targets to scan (one per line)
-   <file|dir>                analyze an APK/AAB/JAR/ZIP, DEX or ELF, or a directory
+   -u, --url string             target URL/host to scan
+   -l, --list string            path to a file with targets to scan (one per line)
+   <file|dir>                   analyze an APK/AAB/JAR/ZIP, DEX or ELF, or a directory
 
 TEMPLATES:
-   -t, --templates string    run JSON/YAML templates from a dir ("auto" = community set)
+   -t, --templates string       run JSON/YAML templates from a directory ("auto" = community set)
 
 SCAN:
-       --passive             passive only - no active injection probes (headers/TLS/exposures)
-       --delay int           delay between HTTP requests in milliseconds (default 300)
+       --passive                passive only - no active injection probes (headers, TLS, exposures)
+       --delay int              delay between HTTP requests in milliseconds (default 300)
 
 OUTPUT:
-   -o, --json string         write a JSON report to the given file
+   -o, --json string            write a JSON report to the given file
 
 UPDATE:
-       update-templates      download / update the community template set
+       update-templates         download / update the community template set
 
 DEBUG:
-       version               show the hakscan version
-       --disable-update-check   skip the GitHub version check at startup (alias -duc)
-   -h, --help                show this help message
+       version                  show the hakscan version
+   -duc, --disable-update-check skip the GitHub version check at startup
+   -h, --help                   show this help message
 
 EXAMPLES:
    # Web scan on a single host
@@ -86,13 +86,14 @@ EXAMPLES:
    $ hakscan -t ./templates/ https://example.com
    $ hakscan -t auto https://example.com
 
-   # Many targets, JSON report
+   # Many targets, with a JSON report
    $ hakscan -l targets.txt -o report.json
 
    # Analyze a mobile app or a native binary
    $ hakscan app.apk
    $ hakscan ./libnative.so
 
+Documentation: https://github.com/slayzbsss/Hakscan
 Authorized targets only. Scanning without permission is illegal.`
 
 const bannerArt = "\n    __          __                       \n   / /_  ____ _/ /________________ _____ \n  / __ \\/ __ `/ //_/ ___/ ___/ __ `/ __ \\\n / / / / /_/ / ,< (__  ) /__/ /_/ / / / /\n/_/ /_/\\__,_/_/|_/____/\\___/\\__,_/_/ /_/    %s\n\n                 slayzbs\n"
