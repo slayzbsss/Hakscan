@@ -83,26 +83,36 @@ _Install Hakscan on your machine and start scanning in seconds. Hakscan is a sin
 
 ### Installation
 
-`hakscan` requires **go >= 1.27** to install successfully. Run the following command to get the latest release:
+Install the latest release in one command (Linux & macOS, no Go required):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/slayzbsss/Hakscan/main/install.sh | bash
+```
+
+This downloads the right prebuilt binary for your OS/architecture and installs it to a directory on your `PATH`.
+
+<details>
+  <summary>Other installation methods</summary>
+
+**Windows** — download the `.zip` from the [**`releases`**](https://github.com/slayzbsss/Hakscan/releases/latest) page and add the extracted `hakscan.exe` to your `PATH`.
+
+**With Go** (requires go >= 1.27):
 
 ```sh
 go install -v github.com/slayzbsss/Hakscan/cmd/hakscan@latest
 ```
 
-`go install` places the binary in `$(go env GOPATH)/bin` (usually `~/go/bin`). If
-`hakscan: command not found`, that directory is not on your `PATH`:
+> `go install` places the binary in `$(go env GOPATH)/bin` (usually `~/go/bin`). If
+> `hakscan: command not found`, that directory isn't on your `PATH`:
+> `export PATH="$PATH:$(go env GOPATH)/bin"`   # add to ~/.bashrc or ~/.zshrc to persist
 
-```sh
-export PATH="$PATH:$(go env GOPATH)/bin"   # add to ~/.bashrc or ~/.zshrc to persist
-```
-
-Prebuilt binaries for Linux, macOS and Windows — plus `.deb`, `.rpm`, `.apk` and
-Arch packages — are on the [**`releases`**](https://github.com/slayzbsss/Hakscan/releases)
-page. On Debian/Ubuntu, for example:
+**Package managers** — `.deb`, `.rpm`, `.apk` and Arch (`.pkg.tar.zst`) packages are attached to every [**`release`**](https://github.com/slayzbsss/Hakscan/releases/latest). On Debian/Ubuntu, for example:
 
 ```sh
 sudo dpkg -i hakscan_*_linux_amd64.deb   # installs to /usr/bin/hakscan
 ```
+
+</details>
 
 ### Command Line Flags
 
